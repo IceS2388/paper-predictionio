@@ -21,7 +21,7 @@ case class PrecisionAtK(k: Int, ratingThreshold: Double = 2.0)
     extends OptionAverageMetric[EmptyEvaluationInfo, Query, PredictedResult, ActualResult] {
 
   require(k > 0, "k must be greater than 0")
-//打印消息：Precision的位数为k，门阀值：ratingThreshold
+  //打印消息：Precision的位数为k，门阀值：ratingThreshold
   override def header = s"Precision@K (k=$k, threshold=$ratingThreshold)"
 
   override
@@ -66,8 +66,10 @@ object RecommendationEvaluation extends Evaluation {
       otherMetrics = Seq(
         PositiveCount(ratingThreshold = 4.0),
         PrecisionAtK(k = 10, ratingThreshold = 2.0),
+
         PositiveCount(ratingThreshold = 2.0),
         PrecisionAtK(k = 10, ratingThreshold = 1.0),
+
         PositiveCount(ratingThreshold = 1.0)
       )))
 }

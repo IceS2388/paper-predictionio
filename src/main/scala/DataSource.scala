@@ -34,24 +34,26 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
     val eventsRDD: RDD[Event] = PEventStore.find(
       appName = dsp.appName,
       entityType = Some("user"),
-      eventNames = Some(List("rate", "buy")), // read "rate" and "buy" event
+      eventNames = Some(List("rate")),
       // targetEntityType is optional field of an event.
       targetEntityType = Some(Some("item")))(sc)
 
-    val ratingsRDD: RDD[Rating] = eventsRDD.map { event =>
+
+
+    val ratingsRDD: RDD[Rating] = eventsRDD.map { eventRecord =>
       val rating = try {
-        val ratingValue: Double = event.event match {
-          case "rate" => event.properties.get[Double]("rating")
-          case "buy" => 4.0 // map buy event to rating value of 4
-          case _ => throw new Exception(s"Unexpected event ${event} is read.")
+        val ratingValue: Double = eventRecord.event match {
+          case "rate" => eventRecord.properties.get[Double]("rating")
+          //case "buy" => 4.0 // map buy event to rating value of 4
+          case _ => throw new Exception(s"Unexpected event ${eventRecord} is read.")
         }
         // entityId and targetEntityId is String
-        Rating(event.entityId,
-          event.targetEntityId.get,
+        Rating(eventRecord.entityId,
+          eventRecord.targetEntityId.get,
           ratingValue)
       } catch {
         case e: Exception => {
-          logger.error(s"Cannot convert ${event} to Rating. Exception: ${e}.")
+          logger.error(s"Cannot convert ${eventRecord} to Rating. Exception: ${e}.")
           throw e
         }
       }
@@ -75,19 +77,28 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
   override
   def readEval(sc: SparkContext)
   : Seq[(TrainingData, EmptyEvaluationInfo, RDD[(Query, ActualResult)])] = {
+
+    //检查评估参数
     require(!dsp.evalParams.isEmpty, "Must specify evalParams")
+
+    //包含kFold和查询的数量
     val evalParams = dsp.evalParams.get
 
     val kFold = evalParams.kFold
+    //Zips this RDD with generated unique Long ids.
+    //生成(RDD[Rating],Long)类型的元组，Long是唯一的
     val ratings: RDD[(Rating, Long)] = getRatings(sc).zipWithUniqueId
     ratings.cache
 
+    //分割数据
     (0 until kFold).map { idx => {
+      //训练集
       val trainingRatings = ratings.filter(_._2 % kFold != idx).map(_._1)
+      //测试集
       val testingRatings = ratings.filter(_._2 % kFold == idx).map(_._1)
-
+      //测试集按照用户ID进行分组，便于验证。
       val testingUsers: RDD[(String, Iterable[Rating])] = testingRatings.groupBy(_.user)
-
+      //返回类型
       (new TrainingData(trainingRatings),
         new EmptyEvaluationInfo(),
         testingUsers.map {

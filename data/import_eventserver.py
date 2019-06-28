@@ -14,6 +14,7 @@ def import_events(client, file):
   random.seed(SEED)
   count = 0
   print("Importing data...")
+  # TODO 自定义事件格式
   for line in f:
     data = line.rstrip('\r\n').split(RATE_ACTIONS_DELIMITER)
     # For demonstration purpose, randomly mix in some buy events

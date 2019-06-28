@@ -30,7 +30,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
   @transient lazy val logger = Logger[this.type]
 
-  if (ap.numIterations > 30) {
+  if (ap.numIterations > 30) {//迭代次数超过30警示信息。
     logger.warn(
       s"ALSAlgorithmParams.numIterations > 30, current: ${ap.numIterations}. " +
       s"There is a chance of running to StackOverflowException." +
@@ -52,8 +52,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   override
   def train(sc: SparkContext, data: PreparedData): ALSModel = {
 
-
-
     // MLLib ALS cannot handle empty training data.
     require(!data.ratings.take(1).isEmpty,
       s"RDD[Rating] in PreparedData cannot be empty." +
@@ -63,6 +61,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
     val userStringIntMap = BiMap.stringInt(data.ratings.map(_.user))//用户的ID号,变成索引号
     val itemStringIntMap = BiMap.stringInt(data.ratings.map(_.item))//物品的ID号,变成索引号
+    //变换成recommendation下的Rating对象
     val mllibRatings = data.ratings.map( r =>
       // MLlibRating requires integer index for user and item
       //MLlibRating 需要user和item的integer类型的索引
@@ -70,6 +69,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     )
 
     // seed for MLlib ALS
+    // 采用纳秒作为随机参数，每次的结果都不同。
     val seed = ap.seed.getOrElse(System.nanoTime)
 
     // Set checkpoint directory
@@ -100,7 +100,9 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     //执行,返回MatrixFactorizationModel类型，但是该类型不支持持久化。
     val m = als.run(mllibRatings)
 
-    //把MatrixFactorizationModel转变成可进行持久化的ALSModel。
+    //TODO 这里跑完后，会产生用户特征矩阵、产品特征矩阵
+
+  //把MatrixFactorizationModel转变成可进行持久化的ALSModel。
     new ALSModel(
       rank = m.rank,
       userFeatures = m.userFeatures,
@@ -118,20 +120,15 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   override
   def predict(model: ALSModel, query: Query): PredictedResult = {
 
-    // Convert String ID to Int index for Mllib
     //把String类型的ID转换成Mllib的Int类型的索引
     model.userStringIntMap.get(query.user).map { userInt =>
-      // create inverse view of itemStringIntMap
       //创建把物品的索引转变成其ID的Map
       val itemIntStringMap = model.itemStringIntMap.inverse
-      // recommendProducts() returns Array[MLlibRating], which uses item Int
-      // index. Convert it to String ID for returning PredictedResult
       //recommendProducts()是MatrixFactorizationModel的方法，其返回Array[MLlibRating]类型的推荐结果。
       //其中包含item的索引，把其转换为String类型的itemID
       val itemScores = model.recommendProducts(userInt, query.num)
         .map (r => ItemScore(itemIntStringMap(r.product), r.rating))
 
-      //PredictionIO passes the returned PredictedResult object to Serving.
       //PredictionIO会把PredictedResult传递给Serving
       PredictedResult(itemScores)
     }.getOrElse{
@@ -140,8 +137,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     }
   }
 
-  // This function is used by the evaluation module, where a batch of queries is sent to this engine
-  // for evaluation purpose.
   /**
     * 本方法用于评估模块,以验证为目的的一批查询发送到引擎。
     * */
@@ -164,7 +159,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       //笛卡尔积形式与item数据构成用户索引-物品索引的矩阵
       .cartesian(model.productFeatures.map(_._1))
 
-    // Call mllib ALS's predict function.
     //调用mllib ALS的预测方法
     val ratings: RDD[MLlibRating] = model.predict(usersProducts)
 
@@ -189,7 +183,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
         (ix, PredictedResult(itemScores = topItemScores))
       }
-      // When user doesn't exist in training data
         //当用户不存在于训练数据集中时
       case (userIx, ((ix, query), None)) => {
         require(userIx == -1)
