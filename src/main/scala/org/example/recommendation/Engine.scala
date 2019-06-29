@@ -1,7 +1,6 @@
 package org.example.recommendation
 
-import org.apache.predictionio.controller.EngineFactory
-import org.apache.predictionio.controller.Engine
+import org.apache.predictionio.controller.{Engine, EngineFactory}
 
 /**
   * 用户ID和查询数量

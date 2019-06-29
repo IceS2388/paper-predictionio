@@ -1,16 +1,11 @@
 package org.example.recommendation
 
-import org.apache.predictionio.controller.PAlgorithm
-import org.apache.predictionio.controller.Params
-import org.apache.predictionio.data.storage.BiMap
-
-import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
-import org.apache.spark.mllib.recommendation.ALS
-import org.apache.spark.mllib.recommendation.{Rating => MLlibRating}
-import org.apache.spark.mllib.recommendation.ALSModel
-
 import grizzled.slf4j.Logger
+import org.apache.predictionio.controller.{PAlgorithm, Params}
+import org.apache.predictionio.data.storage.BiMap
+import org.apache.spark.SparkContext
+import org.apache.spark.mllib.recommendation.{ALS, ALSModel, Rating => MLlibRating}
+import org.apache.spark.rdd.RDD
 
 /**
   * seed:是可选参数，MLlib ALS算法用其生产随机值。没有指定，则使用当前系统时间,导致每次产生的结果不同。当用于测试的时候，

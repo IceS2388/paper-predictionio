@@ -1,12 +1,6 @@
 package org.example.recommendation
 
-import org.apache.predictionio.controller.Evaluation
-import org.apache.predictionio.controller.OptionAverageMetric
-import org.apache.predictionio.controller.AverageMetric
-import org.apache.predictionio.controller.EmptyEvaluationInfo
-import org.apache.predictionio.controller.EngineParamsGenerator
-import org.apache.predictionio.controller.EngineParams
-import org.apache.predictionio.controller.MetricEvaluator
+import org.apache.predictionio.controller._
 
 // Usage:
 // $ pio eval org.example.recommendation.RecommendationEvaluation \
