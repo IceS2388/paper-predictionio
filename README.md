@@ -1,14 +1,36 @@
 # 自定义混合推荐测试
 
-## Documentation
+## 一、参考文档
 
-Please refer to
+PredictionIO入门手册:
 https://predictionio.apache.org/templates/recommendation/quickstart/.
 <br>
 热点问题：
 http://predictionio.apache.org/resources/faq/#using-predictionio
 
-## 思路
+## 二、系统架构
+PredictionIO主要由...
+
+## 三、常用操作命令
+### 1.`pio-docker`相关命令
+#### 1.1 启动
+```shell
+$ cd /root/predictionio/docker
+$ docker-compose -f docker-compose.yml -f pgsql/docker-compose.base.yml -f pgsql/docker-compose.meta.yml -f pgsql/docker-compose.event.yml -f pgsql/docker-compose.model.yml up &
+$ pio-docker status //若一切正常，应该看到`[INFO] [Management$] Your system is all ready to go.`
+```
+#### 1.2 下载对应的模板
+```shell
+$ cd templates/
+$ git clone https://github.com/IceS2388/paper-predictionio.git
+$ cd paper-predictionio
+```
+#### 1.3 下载对应的模板
+```shell
+
+```
+
+###
 ### 步骤
 1. 往Event Server中导入数据。
 2. 在DataSource中对数据进行清洗。
@@ -49,7 +71,10 @@ http://predictionio.apache.org/resources/faq/#using-predictionio
 
 ## Versions
 
-### v0.1.0
+### v1.1.0
+在原有项目的基础上，添加Pearson相似度算法模块，并设置其Pearson系数的权重为1.5。
+
+### v1.0.0
 
 基于predictionio-template-recommender项目的基础上改进而来。
 <br>
