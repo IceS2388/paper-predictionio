@@ -217,6 +217,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
               //这是已经在推荐列表中
               result.update(r1.item, result.get(r1.item).get + r1.rating * r._2)
             } else {
+              logger.info(s"item:${r1.item},new scores:${r1.rating * r._2}")
               result.put(r1.item, r1.rating * r._2)
             }
           }
@@ -224,9 +225,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
       }
     })
     val preResult=result.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => new ItemScore(r._1, r._2))
-    preResult.foreach(r=>{
-      logger.info(s"item:${r.item},scores:${r.score}")
-    })
+
     //排序，返回结果
     PredictedResult(preResult.toArray)
   }

@@ -24,7 +24,11 @@ case class PredictedResult(
 case class ItemScore(
   item: String,
   score: Double
-)
+){
+  override def toString: String = {
+    s"item:${item},score:${score}"
+  }
+}
 /**查询返回记过示例
   * {"itemScores":[
   * {"item":22,"score":4.07},
