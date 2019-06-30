@@ -16,6 +16,13 @@
         "lambda": 0.01,
         "seed": 3
       }
+    },
+    {
+      "name": "pus",
+      "params": {
+        "pearsonThreasholds": 10,
+        "topNLikes": 20
+      }
     }
   ]
 }

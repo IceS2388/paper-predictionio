@@ -1,22 +1,23 @@
 package paper.algorithm
 
 import grizzled.slf4j.Logger
-import org.apache.predictionio.controller.{ PAlgorithm, Params}
+import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.example.recommendation.{PredictedResult, PreparedData, Query, Rating}
-import paper.model.PearsonUserCorrelationSimilarityModel
+import org.example.recommendation._
+import paper.model.PUSModel
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
 
 /**
+  * 全称：PearsonUserCorrelationSimilarity
   *@param rank
   *@param pearsonThreasholds 计算Pearson系数时，最低用户之间共同拥有的元素个数。若相同元素个数的阀值，低于该阀值，相似度为0.
   *@param topNLikes Pearson相似度最大的前N个用户
   **/
-case class PearsonUserSimilarityAlgorithmParams(rank: Int, pearsonThreasholds:Int, topNLikes:Int) extends Params
+case class PUSAlgorithmParams( pearsonThreasholds:Int, topNLikes:Int) extends Params
 
 
 /**功能：
@@ -30,17 +31,10 @@ case class PearsonUserSimilarityAlgorithmParams(rank: Int, pearsonThreasholds:In
   *   预测阶段：
   *   1.根据模型中存储的电影来进行推荐。相似度=pearson系数*相似用户对其的评分
   **/
-class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParams) extends PAlgorithm[PreparedData, PearsonUserCorrelationSimilarityModel, Query, PredictedResult] {
+class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, PUSModel, Query, PredictedResult] {
 
   @transient lazy val logger = Logger[this.type]
 
-  if (ap.rank > 30) {
-    //取最相似的前30位
-    logger.warn(
-      s"超过前30位用户之间的相似性有浪费空间的可能性。${ap.rank}"
-    )
-
-  }
 
   /***
     * 训练阶段:
@@ -48,7 +42,7 @@ class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParam
     *  2.模型中存储前N个最相似的用户和Pearson相似度
     *  3.根据模型选择前N个用户，筛选其超过平均值的电影评分。
     */
-  override def train(sc: SparkContext, data: PreparedData): PearsonUserCorrelationSimilarityModel = {
+  override def train(sc: SparkContext, data: PreparedData): PUSModel = {
 
     require(!data.ratings.take(1).isEmpty, "评论数据不能为空！")
 
@@ -57,11 +51,13 @@ class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParam
 
     //1.转换为HashMap,方便计算Pearson相似度
     var userMap: mutable.Map[String, Iterable[Rating]] =HashMap[String,Iterable[Rating]]()
-    //获取用户ID的向量
-    val users=new Vector[String](userRatings.map(r=>{
+    userRatings.map(r=>{
       userMap+=r
-      r._1
-    }))
+    })
+
+
+    //获取用户ID的向量
+    val users=userRatings.map(r=>r._1).collect()
 
     logger.warn(s"userMap被初始化后元素的个数：${userMap.size}")
     Thread.sleep(1000)
@@ -76,6 +72,7 @@ class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParam
       for{ j<- (0 to i)
           if(j!=i)
       }{
+       val test= users(i)
         //获取到用户的i与用户j的相似度
        val ps= getPearson(users(i),users(j),userMap)
         if(ps>0){
@@ -108,13 +105,18 @@ class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParam
       }
       i+=1
 
+      logger.info(s"maxPearson.size:${maxPearson.size}")
+      Thread.sleep(1000)
+
       //对maxPearson进行排序
      val userPearson= maxPearson.toList.sortBy(_._2).reverse
       (users(i),userPearson)
     })
 
+
+
     //3.生成指定用户喜欢的电影
-    userRatings.map(r=>{
+   val userLikesBeyondMean: RDD[(String, List[Rating])] = userRatings.map(r=>{
 
       var sum=0D
       var count=0
@@ -133,7 +135,7 @@ class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParam
       (r._1,userLikes)
     })
 
-    new PearsonUserCorrelationSimilarityModel(ap.rank,userMap,userNearestPearson)
+    new PUSModel(userMap,userNearestPearson,userLikesBeyondMean)
 
   }
 
@@ -176,8 +178,8 @@ class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParam
 
     //计算平均值和标准差
     var count=0
-    var sum1=0
-    var sum2=0
+    var sum1=0D
+    var sum2=0D
 
     comItems.map(i=>{
         sum1+=i._2._1
@@ -208,5 +210,49 @@ class PearsonUserSimilarityAlgorithm(val ap: PearsonUserSimilarityAlgorithmParam
 
 
 
-  override def predict(model: PearsonUserCorrelationSimilarityModel, query: Query): PredictedResult = ???
+  override def predict(model: PUSModel, query: Query): PredictedResult = {
+    if(!model.userMap.contains(query.user)){
+      //该用户没有过评分记录，返回空值
+      logger.info(s"该用户没有过评分记录，无法生成推荐！${query.user}")
+     return PredictedResult(Array.empty)
+    }
+
+    //1.获取Pearson最大的n个用户
+   val userPearson= model.userNearestPearson.toMap[String,List[(String, Double)]]
+    if(!userPearson.contains(query.user)){
+      //该用户没有对应的Pearson相似用户
+      logger.info(s"该用户没有相似的用户，无法生成推荐！${query.user}")
+      return PredictedResult(Array.empty)
+    }
+    //2.用户最喜欢的前N部电影
+    val userLikes=model.userLikesBeyondMean.collectAsMap()
+
+    val sawItem=model.userMap.get(query.user).get.map(r=>(r.item,r.rating)).toMap
+
+    var result=new mutable.HashMap[String,Double]()
+    //这是与用户最相近的前N个用户
+    userPearson.get(query.user).get.map(r=>{
+      //r._1 //相似的userID
+     // r._2 //相似度
+      if(userLikes.contains(r._1)){
+        //该用户有最喜欢的电影记录
+        userLikes.get(r._1).get.map(r1=>{
+          //r1.item
+          //r1.rating
+          if(!sawItem.contains(r1.item)){
+            //没看过的
+            if(result.contains(r1.item)){
+              //这是已经在推荐列表中
+              result.update(r1.item,result.get(r1.item).get+r1.rating*r._2)
+            }else{
+              result.put(r1.item,r1.rating*r._2)
+            }
+          }
+        })
+      }
+    })
+
+    //排序，返回结果
+    PredictedResult(result.map(r=>(r._1,r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r=>new ItemScore(r._1,r._2)).toArray)
+  }
 }

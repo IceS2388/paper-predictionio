@@ -1,6 +1,7 @@
 package org.example.recommendation
 
 import org.apache.predictionio.controller.{Engine, EngineFactory}
+import paper.algorithm.PUSAlgorithm
 
 /**
   * 用户ID和查询数量
@@ -55,7 +56,9 @@ object RecommendationEngine extends EngineFactory {
     new Engine(
       classOf[DataSource],
       classOf[Preparator],
-      Map("als" -> classOf[ALSAlgorithm]),
+      Map(
+        "als" -> classOf[ALSAlgorithm],
+        "pus" -> classOf[PUSAlgorithm]),
       classOf[Serving])
   }
 }
