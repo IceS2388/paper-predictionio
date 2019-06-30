@@ -1,10 +1,9 @@
-package paper.algorithm
+package org.example.recommendation
 
 import grizzled.slf4j.Logger
 import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
 import org.example.recommendation._
-import paper.model.PUSModel
 
 import scala.collection.mutable
 
@@ -12,7 +11,6 @@ import scala.collection.mutable
 /**
   * 全称：PearsonUserCorrelationSimilarity
   *
-  * @param rank
   * @param pearsonThreasholds 计算Pearson系数时，最低用户之间共同拥有的元素个数。若相同元素个数的阀值，低于该阀值，相似度为0.
   * @param topNLikes          Pearson相似度最大的前N个用户
   **/
@@ -56,12 +54,12 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     val users = userRatings.keySet.toList.sortBy(_.toDouble)
     logger.info(s"2.userMap被初始化后元素的个数：${users.size}")
 
-    var userNearestPearson = new mutable.HashMap[String, List[(String, Double)]]()
+    val userNearestPearson = new mutable.HashMap[String, List[(String, Double)]]()
 
     for {
       u1 <- users
     } {
-      var maxPearson: mutable.Map[String, Double] = mutable.HashMap.empty
+      val maxPearson: mutable.Map[String, Double] = mutable.HashMap.empty
       for {u2 <- users
            if (u1 < u2)} {
         val ps = getPearson(u1, u2, userRatings)
@@ -106,7 +104,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
       (r._1, userLikes)
     })
     logger.info(s"4.userLikes用户最喜欢的电影个数：${userLikesBeyondMean.size}")
-    new PUSModel(userRatings, userNearestPearson.toSeq, userLikesBeyondMean.toSeq)
+    new PUSModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userNearestPearson.toSeq), sc.parallelize( userLikesBeyondMean.toSeq))
 
   }
 
@@ -182,14 +180,15 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
 
 
   override def predict(model: PUSModel, query: Query): PredictedResult = {
-    if (!model.userMap.contains(query.user)) {
+    val uMap=model.userMap.collectAsMap()
+    if (!uMap.contains(query.user)) {
       //该用户没有过评分记录，返回空值
       logger.info(s"该用户没有过评分记录，无法生成推荐！${query.user}")
       return PredictedResult(Array.empty)
     }
 
     //1.获取Pearson最大的n个用户
-    val userPearson = model.userNearestPearson.toMap[String, List[(String, Double)]]
+    val userPearson = model.userNearestPearson.collectAsMap()
     if (!userPearson.contains(query.user)) {
       //该用户没有对应的Pearson相似用户
       logger.info(s"该用户没有相似的用户，无法生成推荐！${query.user}")
@@ -197,11 +196,11 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     }
 
     //2.用户最喜欢的前N部电影
-    val userLikes = model.userLikesBeyondMean.toMap
+    val userLikes = model.userLikesBeyondMean.collectAsMap()
 
-    val sawItem = model.userMap.get(query.user).get.map(r => (r.item, r.rating)).toMap
+    val sawItem = uMap.get(query.user).get.map(r => (r.item, r.rating)).toMap
 
-    var result = new mutable.HashMap[String, Double]()
+    val result = new mutable.HashMap[String, Double]()
     //这是与用户最相近的前N个用户
     userPearson.get(query.user).get.map(r => {
       //r._1 //相似的userID
@@ -214,6 +213,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
           if (!sawItem.contains(r1.item)) {
             //没看过的
             if (result.contains(r1.item)) {
+              logger.info(s"item:${r1.item},old scores:${result.get(r1.item).get},new scores:${r1.rating * r._2}")
               //这是已经在推荐列表中
               result.update(r1.item, result.get(r1.item).get + r1.rating * r._2)
             } else {
@@ -223,8 +223,11 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
         })
       }
     })
-
+    val preResult=result.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => new ItemScore(r._1, r._2))
+    preResult.foreach(r=>{
+      logger.info(s"item:${r.item},scores:${r.score}")
+    })
     //排序，返回结果
-    PredictedResult(result.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => new ItemScore(r._1, r._2)).toArray)
+    PredictedResult(preResult.toArray)
   }
 }

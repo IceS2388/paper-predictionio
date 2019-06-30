@@ -1,7 +1,7 @@
 package org.example.recommendation
 
 import org.apache.predictionio.controller.{Engine, EngineFactory}
-import paper.algorithm.PUSAlgorithm
+
 
 /**
   * 用户ID和查询数量
