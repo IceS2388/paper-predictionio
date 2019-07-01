@@ -23,6 +23,12 @@
         "pearsonThreasholds": 10,
         "topNLikes": 20
       }
+    },
+    {
+      "name": "mv",
+      "params": {
+        "maxItems": 300
+      }
     }
   ]
 }

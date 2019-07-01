@@ -36,50 +36,147 @@ Data Source从事件源读取数据，并转变成指定的格式。Data Prepara
 当引擎收到`REST`查询后的响应流程图如下：
 ![响应流程图](http://predictionio.apache.org/images/engine-query-8d7311ff.png)
 ## 三、常用操作命令
-### 3.1.`pio-docker`相关命令
-#### 启动
+### 3.1 `pio-docker`相关命令
+**启动**
 ```shell
 $ cd /root/predictionio/docker
 $ docker-compose -f docker-compose.yml -f pgsql/docker-compose.base.yml -f pgsql/docker-compose.meta.yml -f pgsql/docker-compose.event.yml -f pgsql/docker-compose.model.yml up &
 $ pio-docker status //若一切正常，应该看到`[INFO] [Management$] Your system is all ready to go.`
 ```
-#### 下载对应的模板
+**下载对应的模板**
 ```shell
 $ cd templates/
 $ git clone https://github.com/IceS2388/paper-predictionio.git
 $ cd paper-predictionio
 ```
-#### 生成模板
+**生成模板**
 ```shell
 $ sbt clean package
 ```
-#### 训练模板
+**训练模板**
 ```shell
 $ pio-docker train  -- --driver-memory 3g --executor-memory 4g --verbose
 ```
-#### 部署模板
+**部署模板**
 ```shell
 $ pio-docker deploy
 ```
 
-###
-### 步骤
+## 三、添加自定义算法的过程
+### 3.1 添加对应的文件
+* 算法文件必须以Algorithm.scala结尾。(必须实现指定的`trait`)
+* 模板文件必须以Model.scala结尾。(必须实现指定的`trait`)
+### 3.2 修改`Engine.scala`文件
+```scala
+object RecommendationEngine extends EngineFactory {
+  def apply() = {
+    /**
+      *控制使用的推荐算法
+      * */
+    new Engine(
+      classOf[DataSource],
+      classOf[Preparator],
+      Map(
+        "als" -> classOf[ALSAlgorithm],
+        "pus" -> classOf[PUSAlgorithm],
+        "mv" -> classOf[MViewAlgorithm]),  //<-这行是新添加的，这样Engine在部署后，会调用指定的算法。
+      classOf[Serving])
+  }
+}
+```
+### 3.3 修改`engine.json`文件
+`engine.json`文件主要存放各个算法的参数。在`algorithms`节点中添加新的参数，如下所示：
+```json
+"algorithms": [
+    ...
+    ,{
+      "name": "mv",
+      "params": {
+        "maxItems": 300
+      }
+    }
+```
+### 3.4 实现算法和模型
+...
+### 3.5 修改`Serving.scala`文件，集成各个算法的推荐结果
+例如：
+```scala
+  override
+  def serve(query: Query,
+    predictedResults: Seq[PredictedResult]): PredictedResult = {
+
+    //存储最终结果的HashMap
+    val result=new mutable.HashMap[String,Double]()
+
+    //1.展示als的评分结果
+    val alsResult=predictedResults.head
+
+    var alsSum=0D
+    alsResult.itemScores.foreach(r=>{
+      alsSum+=r.score
+    })
+    //归一化后存储
+    alsResult.itemScores.foreach(r=>{
+     result.put(r.item,r.score/alsSum)
+    })
+
+
+    val pearsonResult=predictedResults.take(2).last
+    var pearsonSum=0D
+    pearsonResult.itemScores.foreach(r=>{
+      pearsonSum+=r.score
+    })
+    val pearsonWeight=1.5
+    //归一化后存储
+    pearsonResult.itemScores.foreach(r=>{
+      //这里设置pearson的系数权重
+      if(!result.contains(r.item)){
+        result.put(r.item,pearsonWeight*r.score/pearsonSum)
+      }else{
+        //其他算法提供的预测结果
+        val oldScore:Double =result.get(r.item).get
+        result.put(r.item,pearsonWeight*r.score/pearsonSum+oldScore)
+      }
+    })
+
+
+    //1.展示als的评分结果
+    logger.info("ALS算法")
+    predictedResults.head.itemScores.foreach(r=>{
+      logger.info(s"item:${r.item},score:${r.score/alsSum}")
+    })
+    logger.info("Pearson算法")
+    predictedResults.take(2).last.itemScores.foreach(r=>{
+      logger.info(s"item:${r.item},1.5*score:${pearsonWeight*r.score/pearsonSum}")
+    })
+
+    PredictedResult(result.map(r=>new ItemScore(r._1,r._2)).toArray.sortBy(_.score).reverse.take(query.num))
+  }
+```
+## 四、补充知识点
+### 4.1 模型为什么要训练？
+在ALS算法中，如果是实时利用数据训练模型，然后再推荐的话。会非常耗费时间。
+优点:如果根据一定的数据，先训练好模型。在调用推荐方法时，直接使用该模型会节省时间。
+缺点：这决定了其不是实时的推荐系统。
+
+## 五、思想碎片
+### 5.1 主要流程
 1. 往Event Server中导入数据。
 2. 在DataSource中对数据进行清洗。
 3. 重点是去除用户的评分偏好。利用偏好系数=(用户的平均评分-最小评分)/(最大评分-最小评分)
 4. 构建对应的新评分矩阵。
 
-### 混合推荐
+### 5.2 混合推荐
 最终的结果必定是由多个不同推荐的方法合并而来。
 可能的方法：
-1. 协同过滤。
-2. 看Spark ML中推荐的包下的方法(只有ALS是分解矩阵，然而矩阵中存储的是什么有程序员决定。例如：用户与用户的相似度，)。
-3. 基于用户自身历史记录的推荐。(包含最近浏览的推荐)
+1. 协同过滤(Pearson已实现)。
+2. 看Spark ML中推荐的包下的方法(ALS分解矩阵，效果不理想)。
+3. 基于用户自身历史记录的推荐。(包含最近浏览的推荐,待实现)
 4. 热点推荐。
 
-### 多维度测试必须通过卡方验证数据的相关性
+### 5.3 多维度测试必须通过卡方验证数据的相关性(多维度需要经过特征工程，选取主要指标。)
 
-### 协同过滤时必须考虑矩阵分解
+### 5.4 协同过滤时必须考虑矩阵分解
 由于基于矩阵分解的协同过滤
 算法会将原始的用户/物品评分矩阵分解为两个有用户特征组成的低维用户特征矩阵和
 物品特征矩阵，该算法会对分解后的矩阵的新用户和新物品进行聚类找出 K 个最近邻，
@@ -88,26 +185,19 @@ $ pio-docker deploy
 滤算法的冷启动问题。
 矩阵增量计算思路
 
-### 实时举证更新
+### 5.5 实时矩阵更新
 
-### 余弦过滤方法算法
+### 5.6 余弦过滤方法算法
 可加入P因子不同用户之间的评分差异度对相似度进行调节，pearson算法剔除了个人的评分偏好很好的解决了这个问题。
-
-### 补充知识点
-1. 模型为什么要训练？
-在ALS算法中，如果是实时利用数据训练模型，然后再推荐的话。会非常耗费时间。
-优点:如果根据一定的数据，先训练好模型。在调用推荐方法时，直接使用该模型会节省时间。
-缺点：这决定了其不是实时的推荐系统。
-
 
 
 ## Versions
+
+### v1.2.0
+增加访问量最大推荐。
 
 ### v1.1.0
 在原有项目的基础上，添加Pearson相似度算法模块，并设置其Pearson系数的权重为1.5。
 
 ### v1.0.0
-
-基于predictionio-template-recommender项目的基础上改进而来。
-<br>
-原项目地址：https://github.com/IceS2388/predictionio-template-recommender
+基于[predictionio-template-recommender](https://github.com/IceS2388/predictionio-template-recommender)项目的基础上改进而来。

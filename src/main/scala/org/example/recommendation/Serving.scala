@@ -27,9 +27,8 @@ class Serving
     //存储最终结果的HashMap
     val result=new mutable.HashMap[String,Double]()
 
-    //1.展示als的评分结果
+    //1.Als推荐
     val alsResult=predictedResults.head
-
     var alsSum=0D
     alsResult.itemScores.foreach(r=>{
       alsSum+=r.score
@@ -39,16 +38,16 @@ class Serving
      result.put(r.item,r.score/alsSum)
     })
 
-
+    //2.Pearson推荐
     val pearsonResult=predictedResults.take(2).last
     var pearsonSum=0D
     pearsonResult.itemScores.foreach(r=>{
       pearsonSum+=r.score
     })
-    val pearsonWeight=1.5
+    val pearsonWeight=1.5 //这里设置pearson的系数权重
     //归一化后存储
     pearsonResult.itemScores.foreach(r=>{
-      //这里设置pearson的系数权重
+
       if(!result.contains(r.item)){
         result.put(r.item,pearsonWeight*r.score/pearsonSum)
       }else{
@@ -58,8 +57,26 @@ class Serving
       }
     })
 
+    //3.MV推荐
+    val mvResult=predictedResults.take(3).last
+    var mvSum=0D
+    mvResult.itemScores.foreach(r=>{
+      mvSum+=r.score
+    })
+    val mvWeight=1.5 //这里设置MV的系数权重
+    //归一化后存储
+    mvResult.itemScores.foreach(r=>{
+      if(!result.contains(r.item)){
+        result.put(r.item,mvWeight*r.score/mvSum)
+      }else{
+        //其他算法提供的预测结果
+        val oldScore:Double =result.get(r.item).get
+        result.put(r.item,mvWeight*r.score/mvSum+oldScore)
+      }
+    })
 
-    //1.展示als的评分结果
+
+
     logger.info("ALS算法")
     predictedResults.head.itemScores.foreach(r=>{
       logger.info(s"item:${r.item},score:${r.score/alsSum}")
@@ -67,6 +84,10 @@ class Serving
     logger.info("Pearson算法")
     predictedResults.take(2).last.itemScores.foreach(r=>{
       logger.info(s"item:${r.item},1.5*score:${pearsonWeight*r.score/pearsonSum}")
+    })
+    logger.info("MV算法")
+    predictedResults.take(3).last.itemScores.foreach(r=>{
+      logger.info(s"item:${r.item},1.5*score:${mvWeight*r.score/mvSum}")
     })
 
     PredictedResult(result.map(r=>new ItemScore(r._1,r._2)).toArray.sortBy(_.score).reverse.take(query.num))

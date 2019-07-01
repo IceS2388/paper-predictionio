@@ -55,14 +55,15 @@ case class ActualResult(
 object RecommendationEngine extends EngineFactory {
   def apply() = {
     /**
-      *
+      *控制使用的推荐算法
       * */
     new Engine(
       classOf[DataSource],
       classOf[Preparator],
       Map(
         "als" -> classOf[ALSAlgorithm],
-        "pus" -> classOf[PUSAlgorithm]),
+        "pus" -> classOf[PUSAlgorithm],
+        "mv" -> classOf[MViewAlgorithm]),
       classOf[Serving])
   }
 }
