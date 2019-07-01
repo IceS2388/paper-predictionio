@@ -3,14 +3,13 @@ package org.example.recommendation
 import grizzled.slf4j.Logger
 import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
-import org.example.recommendation._
-
 import scala.collection.mutable
 
+/**
+  * PUS的全称：PearsonUserCorrelationSimilarity
+  * */
 
 /**
-  * 全称：PearsonUserCorrelationSimilarity
-  *
   * @param pearsonThreasholds 计算Pearson系数时，最低用户之间共同拥有的元素个数。若相同元素个数的阀值，低于该阀值，相似度为0.
   * @param topNLikes          Pearson相似度最大的前N个用户
   **/
@@ -19,15 +18,7 @@ case class PUSAlgorithmParams(pearsonThreasholds: Int, topNLikes: Int) extends P
 
 /** 功能：
   * 实现用户Pearson相似度算法。
-  *
-  * @param rank 取相似度最大的前N个用户
-  *             思路：
-  *             训练阶段:
-  *   1.根据输入的数据，获取用户与用户之间的Pearson相似度。
-  *   2.模型中存储前N个最相似的用户和Pearson相似度
-  *   3.根据模型选择前N个用户，筛选其超过平均值的电影评分。
-  *             预测阶段：
-  *   1.根据模型中存储的电影来进行推荐。相似度=pearson系数*相似用户对其的评分
+  * @param ap 该算法在engine.json中设置的参数
   * */
 class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, PUSModel, Query, PredictedResult] {
 
@@ -44,15 +35,12 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     require(!data.ratings.take(1).isEmpty, "评论数据不能为空！")
 
-    logger.info(s"1.进入train方法。原始数据条数：${data.ratings.count()}")
-
     //1.转换为HashMap,方便计算Pearson相似度
     val userRatings = data.ratings.groupBy(r => r.user).collectAsMap().toMap
 
 
     //2.获取用户ID的向量
     val users = userRatings.keySet.toList.sortBy(_.toDouble)
-    logger.info(s"2.userMap被初始化后元素的个数：${users.size}")
 
     val userNearestPearson = new mutable.HashMap[String, List[(String, Double)]]()
 
@@ -77,11 +65,9 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
           }
         }
       }
-      logger.info(s"2.1maxPearson.size:${maxPearson.size}")
+
       userNearestPearson.put(u1, maxPearson.toList.sortBy(_._2).reverse)
     }
-    logger.info(s"3.userNearestPearson用户Pearson相似度最大的个数：${userNearestPearson.size}")
-
 
     //3.生成指定用户喜欢的电影
     val userLikesBeyondMean = userRatings.map(r => {
@@ -103,7 +89,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
 
       (r._1, userLikes)
     })
-    logger.info(s"4.userLikes用户最喜欢的电影个数：${userLikesBeyondMean.size}")
+
     new PUSModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userNearestPearson.toSeq), sc.parallelize( userLikesBeyondMean.toSeq))
 
   }
@@ -122,7 +108,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     }
 
     //u1与u2共同的物品ID
-    var comMap = new mutable.HashMap[String, (Double, Double)]
+    val comMap = new mutable.HashMap[String, (Double, Double)]
 
     userHashRatings.get(userid1).get.map(u1 => {
       //添加u1拥有的物品
@@ -183,7 +169,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     val uMap=model.userMap.collectAsMap()
     if (!uMap.contains(query.user)) {
       //该用户没有过评分记录，返回空值
-      logger.info(s"该用户没有过评分记录，无法生成推荐！${query.user}")
+      logger.warn(s"该用户没有过评分记录，无法生成推荐！${query.user}")
       return PredictedResult(Array.empty)
     }
 
@@ -191,7 +177,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     val userPearson = model.userNearestPearson.collectAsMap()
     if (!userPearson.contains(query.user)) {
       //该用户没有对应的Pearson相似用户
-      logger.info(s"该用户没有相似的用户，无法生成推荐！${query.user}")
+      logger.warn(s"该用户没有相似的用户，无法生成推荐！${query.user}")
       return PredictedResult(Array.empty)
     }
 
@@ -213,11 +199,11 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
           if (!sawItem.contains(r1.item)) {
             //没看过的
             if (result.contains(r1.item)) {
-              logger.info(s"item:${r1.item},old scores:${result.get(r1.item).get},new scores:${r1.rating * r._2}")
+
               //这是已经在推荐列表中
               result.update(r1.item, result.get(r1.item).get + r1.rating * r._2)
             } else {
-              logger.info(s"item:${r1.item},new scores:${r1.rating * r._2}")
+
               result.put(r1.item, r1.rating * r._2)
             }
           }

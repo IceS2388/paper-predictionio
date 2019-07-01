@@ -6,7 +6,10 @@ import org.apache.spark.rdd.RDD
 
 
 /**
-  * Pearson用户相似度模板
+  * Pearson用户相似度模板。
+  * @param userMap 用户对应的评分列表。
+  * @param userNearestPearson 与用户Pearson系数最大的前N个用户。
+  * @param userLikesBeyondMean 用户最喜欢的前N部电影，从看过的历史记录中筛选。
   **/
 class PUSModel(
                 val userMap: RDD[(String, Iterable[Rating])],
