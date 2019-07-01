@@ -24,6 +24,8 @@ class Serving
   def serve(query: Query,
     predictedResults: Seq[PredictedResult]): PredictedResult = {
 
+    logger.info(s"推荐结果集的个数：${predictedResults.size}")
+
     //存储最终结果的HashMap
     val result=new mutable.HashMap[String,Double]()
 
@@ -59,6 +61,7 @@ class Serving
 
     //3.MV推荐
     val mvResult=predictedResults.take(3).last
+    logger.info(s"mvResult.size:${mvResult.itemScores.length}")
     var mvSum=0D
     mvResult.itemScores.foreach(r=>{
       mvSum+=r.score

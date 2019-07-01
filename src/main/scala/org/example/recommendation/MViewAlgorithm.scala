@@ -1,5 +1,6 @@
 package org.example.recommendation
 
+import grizzled.slf4j.Logger
 import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -14,6 +15,8 @@ case class MViewAlgorithmParams(maxItems: Int) extends Params
   * 实现推荐访问最多的电影。
   **/
 class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedData, MViewModel, Query, PredictedResult] {
+  @transient lazy val logger = Logger[this.type]
+
   override def train(sc: SparkContext, data: PreparedData): MViewModel = {
 
     //用户的观影记录
@@ -35,6 +38,8 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
       val items = r._2.map(r2 => r2.item)
       (r._1, items)
     })
+    logger.info(s"userOwned:${userOwned.count()}")
+    logger.info(s"mostView:${mostView.size}")
     new MViewModel(userOwned, sc.parallelize(mostView))
   }
 
@@ -48,6 +53,8 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     }).take(query.num).map(r => {
       new ItemScore(r._1, r._2)
     })
+
+    logger.info(s"result:${result.length}")
 
     PredictedResult(result)
   }
