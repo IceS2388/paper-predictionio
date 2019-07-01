@@ -19,27 +19,35 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
   override def train(sc: SparkContext, data: PreparedData): MViewModel = {
 
-    //用户的观影记录
-    val userGroup = data.ratings.groupBy(r => r.item)
+    //电影分组
+    val itemGroup = data.ratings.groupBy(r => r.item)
+    //(电影ID，观影次数)
+    var initalSize: RDD[(String, Int)] = itemGroup.map(r => (r._1, r._2.size))
 
-    var initalSize: RDD[(String, Int)] = userGroup.map(r => (r._1, r._2.size))
+    //调试信息
+    initalSize.foreach(r=>{
+      logger.info(s"itemid:${r._1},count:${r._2}")
+    })
 
+
+    logger.info(s"电影的总数：${initalSize.count()}")
     while (initalSize.count() > 2 * ap.maxItems) {
+
       //1.求平均值
       val sum = initalSize.map(_._2).sum()
       val mean = sum / initalSize.count()
       //2.筛选
       initalSize = initalSize.filter(r => r._2 > mean)
+      logger.info(s"筛选后剩余的电影的总数：${initalSize.count()}")
     }
 
     val mostView: Array[(String, Int)] = initalSize.sortBy(_._2).collect().reverse.take(ap.maxItems)
 
-    val userOwned = userGroup.map(r => {
+    //用户看过的
+    val userOwned =data.ratings.groupBy(_.user).map(r => {
       val items = r._2.map(r2 => r2.item)
       (r._1, items)
     })
-    //logger.info(s"userOwned:${userOwned.count()}")
-    //logger.info(s"mostView:${mostView.size}")
     new MViewModel(userOwned, sc.parallelize(mostView))
   }
 
@@ -48,13 +56,19 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
     //该用户有看过
     val itemMap = sawMovie.get(query.user)
+    logger.info(s"用户看过的电影大小：${itemMap.size}")
+    logger.info(s"筛选前的大小：${model.mostView.count()}")
     val result = model.mostView.filter(r => {
       !itemMap.contains(r._1)
     }).take(query.num).map(r => {
       new ItemScore(r._1, r._2)
     })
+    logger.info(s"筛选后的大小：${result.size}")
 
-    //logger.info(s"result:${result.length}")
+    if(result.size==0){
+      logger.error(s"没有获取到热门推荐的电影!!!!!!!")
+    }
+    logger.info(s"result:${result.length}")
 
     PredictedResult(result)
   }
