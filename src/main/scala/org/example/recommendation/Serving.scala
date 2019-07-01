@@ -61,7 +61,7 @@ class Serving
 
     //3.MV推荐
     val mvResult=predictedResults.take(3).last
-    logger.info(s"mvResult.size:${mvResult.itemScores.length}")
+    //logger.info(s"mvResult.size:${mvResult.itemScores.length}")
     var mvSum=0D
     mvResult.itemScores.foreach(r=>{
       mvSum+=r.score

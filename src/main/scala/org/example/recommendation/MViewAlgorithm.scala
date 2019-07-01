@@ -38,8 +38,8 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
       val items = r._2.map(r2 => r2.item)
       (r._1, items)
     })
-    logger.info(s"userOwned:${userOwned.count()}")
-    logger.info(s"mostView:${mostView.size}")
+    //logger.info(s"userOwned:${userOwned.count()}")
+    //logger.info(s"mostView:${mostView.size}")
     new MViewModel(userOwned, sc.parallelize(mostView))
   }
 
@@ -54,7 +54,7 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
       new ItemScore(r._1, r._2)
     })
 
-    logger.info(s"result:${result.length}")
+    //logger.info(s"result:${result.length}")
 
     PredictedResult(result)
   }
