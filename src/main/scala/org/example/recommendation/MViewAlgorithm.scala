@@ -30,7 +30,7 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     })*/
 
 
-    logger.info(s"电影的总数：${initalSize.count()}")
+    //logger.info(s"电影的总数：${initalSize.count()}")
     while (initalSize.count() > 2 * ap.maxItems) {
 
       //1.求平均值
@@ -56,8 +56,17 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
     //该用户已经看过的电影
     val itemMap = sawMovie.get(query.user)
-    logger.info(s"用户看过的电影大小：${itemMap.size}")
+
+
+    //调试信息
     logger.info(s"筛选前的大小：${model.mostView.count()}")
+    val myCount=model.mostView.filter(r => {
+      val re= itemMap.contains(r._1)
+      logger.info(s"${r._1}是否包含在用户的观看列表：${re}")
+      re
+    }).count()
+    logger.info(s"用户观看列表的大小：${itemMap.get.size}；包含在最喜欢看列表中的个数为：${myCount}")
+
 
 
     val result = model.mostView.filter(r => {
@@ -67,10 +76,6 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     })
     logger.info(s"筛选后的大小：${result.size}")
 
-    if(result.size==0){
-      logger.error(s"没有获取到热门推荐的电影!!!!!!!")
-    }
-    logger.info(s"result:${result.length}")
 
     //实现归一化
     val sum= result.map(r=>r._2).sum
@@ -78,7 +83,6 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     val returnResult=result.map(r=>{
        ItemScore(r._1,r._2/sum*mvWeight)
     })
-
 
     PredictedResult(returnResult)
   }
