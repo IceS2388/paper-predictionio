@@ -54,14 +54,16 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
   override def predict(model: MViewModel, query: Query): PredictedResult = {
     val sawMovie = model.userMap.collectAsMap()
 
-    //该用户有看过
+    //该用户已经看过的电影
     val itemMap = sawMovie.get(query.user)
     logger.info(s"用户看过的电影大小：${itemMap.size}")
     logger.info(s"筛选前的大小：${model.mostView.count()}")
+
+
     val result = model.mostView.filter(r => {
       !itemMap.contains(r._1)
     }).take(query.num).map(r => {
-      new ItemScore(r._1, r._2)
+      (r._1, r._2)
     })
     logger.info(s"筛选后的大小：${result.size}")
 
@@ -70,6 +72,14 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     }
     logger.info(s"result:${result.length}")
 
-    PredictedResult(result)
+    //实现归一化
+    val sum= result.map(r=>r._2).sum
+    val mvWeight=1.5
+    val returnResult=result.map(r=>{
+       ItemScore(r._1,r._2/sum*mvWeight)
+    })
+
+
+    PredictedResult(returnResult)
   }
 }

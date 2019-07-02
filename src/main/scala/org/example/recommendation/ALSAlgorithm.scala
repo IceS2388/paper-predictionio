@@ -95,7 +95,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     //执行,返回MatrixFactorizationModel类型，但是该类型不支持持久化。
     val m = als.run(mllibRatings)
 
-    //TODO 这里跑完后，会产生用户特征矩阵、产品特征矩阵
+    //说明: 这里跑完后，会产生用户特征矩阵、产品特征矩阵
 
   //把MatrixFactorizationModel转变成可进行持久化的ALSModel。
     new ALSModel(
@@ -121,8 +121,15 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       val itemIntStringMap = model.itemStringIntMap.inverse
       //recommendProducts()是MatrixFactorizationModel的方法，其返回Array[MLlibRating]类型的推荐结果。
       //其中包含item的索引，把其转换为String类型的itemID
-      val itemScores = model.recommendProducts(userInt, query.num)
-        .map (r => ItemScore(itemIntStringMap(r.product), r.rating))
+      val tempResult = model.recommendProducts(userInt, query.num)
+        .map (r => (itemIntStringMap(r.product), r.rating))
+
+      //添加归一化
+      val sum=tempResult.map(r=>r._2).sum
+      val weight=1.0
+      val itemScores=tempResult.map(r=>{
+        ItemScore(r._1,r._2/sum*weight)
+      })
 
       //PredictionIO会把PredictedResult传递给Serving
       PredictedResult(itemScores)

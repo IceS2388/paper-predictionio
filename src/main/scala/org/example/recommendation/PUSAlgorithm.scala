@@ -173,7 +173,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
       return PredictedResult(Array.empty)
     }
 
-    //1.获取Pearson最大的n个用户
+    //1.获取当前要推荐用户的Pearson值最大的用户列表
     val userPearson = model.userNearestPearson.collectAsMap()
     if (!userPearson.contains(query.user)) {
       //该用户没有对应的Pearson相似用户
@@ -181,38 +181,46 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
       return PredictedResult(Array.empty)
     }
 
-    //2.用户最喜欢的前N部电影
+    //2.所有用户最喜欢的前N部电影
     val userLikes = model.userLikesBeyondMean.collectAsMap()
 
+    //当前用户已经观看过的列表
     val sawItem = uMap.get(query.user).get.map(r => (r.item, r.rating)).toMap
 
+    //存储结果的列表
     val result = new mutable.HashMap[String, Double]()
-    //这是与用户最相近的前N个用户
+    //与当前查询用户相似度最高的用户，其观看过的且查询用户未看过的电影列表。
     userPearson.get(query.user).get.map(r => {
       //r._1 //相似的userID
       // r._2 //相似度
       if (userLikes.contains(r._1)) {
-        //该用户有最喜欢的电影记录
+        //r._1用户有最喜欢的电影记录
         userLikes.get(r._1).get.map(r1 => {
           //r1.item
           //r1.rating
           if (!sawItem.contains(r1.item)) {
-            //没看过的
+            //当前用户未观看过的电影r1.item
             if (result.contains(r1.item)) {
-
               //这是已经在推荐列表中
               result.update(r1.item, result.get(r1.item).get + r1.rating * r._2)
             } else {
-
               result.put(r1.item, r1.rating * r._2)
             }
           }
         })
       }
     })
-    val preResult=result.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => new ItemScore(r._1, r._2))
+    //排序取TopN
+    val preResult=result.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => (r._1, r._2))
+
+    //归一化并加上权重
+    val sum=preResult.map(r=>r._2).sum
+    val PUSWeight=1.5
+    val returnResult=result.map(r=>{
+      ItemScore(r._1,r._2/sum*PUSWeight)
+    })
 
     //排序，返回结果
-    PredictedResult(preResult.toArray)
+    PredictedResult(returnResult.toArray)
   }
 }

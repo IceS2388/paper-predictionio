@@ -12,11 +12,12 @@ case class Query(
 )
 
 /**
-  * ItemScore的数组
+  * ItemScore的数组，最后返回给用户的结果
   **/
 case class PredictedResult(
   itemScores: Array[ItemScore]
 )
+
 
 /**
   * 物品的ID和评分
