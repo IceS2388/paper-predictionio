@@ -25,9 +25,9 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     var initalSize: RDD[(String, Int)] = itemGroup.map(r => (r._1, r._2.size))
 
     //调试信息
-    initalSize.foreach(r=>{
+    /*initalSize.foreach(r=>{
       logger.info(s"itemid:${r._1},count:${r._2}")
-    })
+    })*/
 
 
     logger.info(s"电影的总数：${initalSize.count()}")
