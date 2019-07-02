@@ -215,7 +215,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     //归一化并加上权重
     val sum=preResult.map(r=>r._2).sum
-    val PUSWeight=1.5
+    val PUSWeight=2
     val returnResult=result.map(r=>{
       ItemScore(r._1,r._2/sum*PUSWeight)
     })

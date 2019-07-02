@@ -21,7 +21,7 @@
       "name": "pus",
       "params": {
         "pearsonThreasholds": 10,
-        "topNLikes": 20
+        "topNLikes": 50
       }
     },
     {
