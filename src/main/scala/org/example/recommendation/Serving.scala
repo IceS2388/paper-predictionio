@@ -17,8 +17,6 @@ class Serving
 
   /**
     * 本方法处理预测的结果。可聚合多个预测模型的预测结果。这里返回的是最终的结果。PredictionIO会自动转换成JSON格式。
-    * 思路：
-    *   不同算法预测出来的评分肯定不统一，为了方便计算必须归一化。再进行具体的权重系数必须仔细考虑。
     * */
   override
   def serve(query: Query,

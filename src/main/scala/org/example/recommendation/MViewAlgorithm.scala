@@ -38,7 +38,7 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
       val mean = sum / initalSize.count()
       //2.筛选
       initalSize = initalSize.filter(r => r._2 > mean)
-      logger.info(s"筛选后剩余的电影的总数：${initalSize.count()}")
+      //logger.info(s"筛选后剩余的电影的总数：${initalSize.count()}")
     }
 
     val mostView: Array[(String, Int)] = initalSize.sortBy(_._2).collect().reverse.take(ap.maxItems)
@@ -59,13 +59,13 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
 
     //调试信息
-    logger.info(s"筛选前的大小：${model.mostView.count()}")
+   /* logger.info(s"筛选前的大小：${model.mostView.count()}")
     val myCount=model.mostView.filter(r => {
       val re= itemMap.contains(r._1)
       logger.info(s"${r._1}是否包含在用户的观看列表：${re}")
       re
     }).count()
-    logger.info(s"用户观看列表的大小：${itemMap.get.size}；包含在最喜欢看列表中的个数为：${myCount}")
+    logger.info(s"用户观看列表的大小：${itemMap.get.size}；包含在最喜欢看列表中的个数为：${myCount}")*/
 
 
 
@@ -74,7 +74,7 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     }).take(query.num).map(r => {
       (r._1, r._2)
     })
-    logger.info(s"筛选后的大小：${result.size}")
+    //logger.info(s"筛选后的大小：${result.size}")
 
 
     //实现归一化
