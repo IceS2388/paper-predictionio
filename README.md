@@ -190,6 +190,27 @@ object RecommendationEngine extends EngineFactory {
 ### 5.6 余弦过滤方法算法
 可加入P因子不同用户之间的评分差异度对相似度进行调节，pearson算法剔除了个人的评分偏好很好的解决了这个问题。
 
+### 5.7 去除用户偏好的另外一种方法
+1. 标准线:5/2=2.5。
+2. 求出每个用户评价的平均分。
+3. 以2.5为基础，采用新评分= 旧评分+(2.5-用户的平均值)
+4. 再采用ALS算法进行运算。
+
+//测试配置
+/*,{
+      "name": "pus",
+      "params": {
+        "pearsonThreasholds": 10,
+        "topNLikes": 50
+      }
+    }
+  , {
+      "name": "mv",
+      "params": {
+        "maxItems": 300
+      }
+    }*/
+
 
 ## Versions
 

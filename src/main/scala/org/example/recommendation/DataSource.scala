@@ -68,7 +68,7 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
   }
 
   /**
-    * 从datastore中读取和选择数据，返回序列(training,validation)
+    * 从datastore中读取和分割原始数据
     * */
   override
   def readEval(sc: SparkContext)
