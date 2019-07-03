@@ -17,6 +17,19 @@
         "seed": 3
       }
     }
+  ,{
+      "name": "pus",
+      "params": {
+        "pearsonThreasholds": 10,
+        "topNLikes": 50
+      }
+    }
+  , {
+      "name": "mv",
+      "params": {
+        "maxItems": 300
+      }
+    }
 
   ]
 }

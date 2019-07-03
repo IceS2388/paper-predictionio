@@ -53,17 +53,6 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
       " Please check if DataSource generates TrainingData" +
       " and Preparator generates PreparedData correctly.")
 
-    //修改用户的评分，去除用户的评分偏好
-    //1.获取中值
-    val allRatings= data.ratings.map(r=>r.rating)
-    val midRating=(allRatings.max()+allRatings.min())/2
-
-    val userRatingsMean=data.ratings.groupBy(_.user).map(r=>{
-      //r._1//用户ID
-      //r._2//Rating
-      val mean=r._2.map(r2=>r2.rating).sum/r._2.map(r2=>r2.rating).size
-      (r._1,mean)
-    }).collectAsMap()
 
 
 
@@ -72,11 +61,8 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     val itemStringIntMap = BiMap.stringInt(data.ratings.map(_.item))//物品的ID号,变成索引号
     //变换成recommendation下的Rating对象
     val mllibRatings = data.ratings.map( r =>{
-      //去除用户偏好后的新评分
-      val newRating=r.rating+(midRating-userRatingsMean.get(r.user).get)
-      // MLlibRating requires integer index for user and item
       //MLlibRating 需要user和item的integer类型的索引
-      MLlibRating(userStringIntMap(r.user), itemStringIntMap(r.item), newRating)
+      MLlibRating(userStringIntMap(r.user), itemStringIntMap(r.item), r.rating)
   })
 
     // seed for MLlib ALS

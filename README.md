@@ -196,20 +196,8 @@ object RecommendationEngine extends EngineFactory {
 3. 以2.5为基础，采用新评分= 旧评分+(2.5-用户的平均值)
 4. 再采用ALS算法进行运算。
 
-//测试配置
-/*,{
-      "name": "pus",
-      "params": {
-        "pearsonThreasholds": 10,
-        "topNLikes": 50
-      }
-    }
-  , {
-      "name": "mv",
-      "params": {
-        "maxItems": 300
-      }
-    }*/
+
+
 
 
 ## Versions
