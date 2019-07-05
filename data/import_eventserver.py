@@ -32,7 +32,7 @@ def import_events(client, file):
             "timestamp": int(data[3])
           }
         )
-        print('.',end = ' ')
+        print('.',end='')
       except Exception as e:
         print(e)
         print(data)
