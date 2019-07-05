@@ -40,7 +40,6 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
       val rating = try {
         val ratingValue: Double = eventRecord.event match {
           case "rate" => eventRecord.properties.get[Double]("rating")
-          //case "buy" => 4.0 // map buy event to rating value of 4
           case _ => throw new Exception(s"Unexpected event ${eventRecord} is read.")
         }
         // entityId and targetEntityId is String
@@ -81,19 +80,20 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
     val evalParams = dsp.evalParams.get
 
     val kFold = evalParams.kFold
-    //Zips this RDD with generated unique Long ids.
+
     //生成(RDD[Rating],Long)类型的元组，Long是唯一的
     val ratings: RDD[(Rating, Long)] = getRatings(sc).zipWithUniqueId
     ratings.cache
 
-    //分割数据
-    (0 until kFold).map { idx => {
-      //训练集
+    //分割数据,分成k份
+    (0 until kFold).map { idx => {//idxsh是zipWithUniqueId中每条评分记录Rating生成对应且唯一的标志Long型数据
+      //训练集:Rating的索引模KFold，若余数不等于当前idx，则添加到训练集
       val trainingRatings = ratings.filter(_._2 % kFold != idx).map(_._1)
-      //测试集
+      //测试集,若余数等idx则为测试集.idx的取值从0->kFold
       val testingRatings = ratings.filter(_._2 % kFold == idx).map(_._1)
       //测试集按照用户ID进行分组，便于验证。
       val testingUsers: RDD[(String, Iterable[Rating])] = testingRatings.groupBy(_.user)
+
       //返回类型
       (new TrainingData(trainingRatings),
         new EmptyEvaluationInfo(),
