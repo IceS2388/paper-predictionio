@@ -4,7 +4,7 @@ Import sample data for recommendation engine
 
 import predictionio
 import argparse
-
+import sys
 
 RATE_ACTIONS_DELIMITER = ","
 
@@ -32,7 +32,10 @@ def import_events(client, file):
             "timestamp": int(data[3])
           }
         )
-        print('.',end='')
+        if sys.version_info[0] < 3:
+          print('.',)
+        else:
+          print('.',end='')
       except Exception as e:
         print(e)
         print(data)
