@@ -4,7 +4,7 @@ Import sample data for recommendation engine
 
 import predictionio
 import argparse
-import time
+
 
 RATE_ACTIONS_DELIMITER = ","
 
@@ -29,7 +29,7 @@ def import_events(client, file):
           target_entity_id=data[1],
           properties= {
             "rating" : float(data[2]),
-            "timestamp": time.localtime(int(data[3]))
+            "timestamp": int(data[3])
           }
         )
       except Exception as e:
