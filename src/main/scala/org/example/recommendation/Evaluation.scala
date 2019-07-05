@@ -81,5 +81,24 @@ object RecommendationEvaluation extends Evaluation {
       ),"evalResult"  ))
 }
 
+object EngineParamsList extends EngineParamsGenerator {
+  // Define list of EngineParams used in Evaluation
 
+  // First, we define the base engine params. It specifies the appName from which
+  // the data is read, and a evalParams parameter is used to define the
+  // cross-validation.
+ private[this] val baseEP = EngineParams(
+    dataSourceParams = DataSourceParams(appName = "MyApp1", evalParams = Some(DataSourceEvalParams(10,10))))
+
+
+
+    // Second, we specify the engine params list by explicitly listing all
+    // algorithm parameters. In this case, we evaluate 3 engine params, each with
+    // a different algorithm params value.
+    engineParamsList = Seq(
+      baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10,20,0.01,Some(3L))))),
+      baseEP.copy(algorithmParamsList = Seq(("pus", PUSAlgorithmParams(10,50)))),
+      baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300)))))
+      )
+}
 

@@ -4,11 +4,7 @@
   "engineFactory": "org.example.recommendation.RecommendationEngine",
   "datasource": {
     "params" : {
-      "appName": "MyApp1",
-      "evalParams": {
-        "kFold": 5,
-        "queryNum": 10
-      }
+      "appName": "MyApp1"
     }
   },
   "algorithms": [
