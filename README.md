@@ -55,13 +55,17 @@ $ sbt clean package
 ```
 **训练模板**
 ```shell
-$ pio-docker train  -- --driver-memory 3g --executor-memory 4g --verbose
+$ pio-docker train  -- --driver-memory 3g --executor-memory 5g --verbose
 ```
 **部署模板**
 ```shell
 $ pio-docker deploy
 ```
-
+**评估模板**
+```shell
+$ pio-docker eval org.example.recommendation.RecommendationEvaluation org.example.recommendation.EngineParamsList -- --driver-memory 3g --executor-memory 5g --verbose
+```
+**运行结果：**报错`OOM`需要阅读Spark相关文档后继续。
 ## 三、添加自定义算法的过程
 ### 3.1 添加对应的文件
 * 算法文件必须以Algorithm.scala结尾。(必须实现指定的`trait`)
@@ -99,59 +103,22 @@ object RecommendationEngine extends EngineFactory {
 ### 3.4 实现算法和模型
 ...
 ### 3.5 修改`Serving.scala`文件，集成各个算法的推荐结果
-例如：
 ```scala
-  override
-  def serve(query: Query,
-    predictedResults: Seq[PredictedResult]): PredictedResult = {
+ val result=new mutable.HashMap[String,Double]()
 
-    //存储最终结果的HashMap
-    val result=new mutable.HashMap[String,Double]()
-
-    //1.展示als的评分结果
-    val alsResult=predictedResults.head
-
-    var alsSum=0D
-    alsResult.itemScores.foreach(r=>{
-      alsSum+=r.score
-    })
-    //归一化后存储
-    alsResult.itemScores.foreach(r=>{
-     result.put(r.item,r.score/alsSum)
+    predictedResults.map(pr=>{
+      pr.itemScores.map(is=>{
+        if(!result.contains(is.item)){
+          result.put(is.item,is.score)
+        }else{
+          val oldScore=result.get(is.item).get
+          result.update(is.item,oldScore+is.score)
+        }
+      })
     })
 
-
-    val pearsonResult=predictedResults.take(2).last
-    var pearsonSum=0D
-    pearsonResult.itemScores.foreach(r=>{
-      pearsonSum+=r.score
-    })
-    val pearsonWeight=1.5
-    //归一化后存储
-    pearsonResult.itemScores.foreach(r=>{
-      //这里设置pearson的系数权重
-      if(!result.contains(r.item)){
-        result.put(r.item,pearsonWeight*r.score/pearsonSum)
-      }else{
-        //其他算法提供的预测结果
-        val oldScore:Double =result.get(r.item).get
-        result.put(r.item,pearsonWeight*r.score/pearsonSum+oldScore)
-      }
-    })
-
-
-    //1.展示als的评分结果
-    logger.info("ALS算法")
-    predictedResults.head.itemScores.foreach(r=>{
-      logger.info(s"item:${r.item},score:${r.score/alsSum}")
-    })
-    logger.info("Pearson算法")
-    predictedResults.take(2).last.itemScores.foreach(r=>{
-      logger.info(s"item:${r.item},1.5*score:${pearsonWeight*r.score/pearsonSum}")
-    })
 
     PredictedResult(result.map(r=>new ItemScore(r._1,r._2)).toArray.sortBy(_.score).reverse.take(query.num))
-  }
 ```
 
 ## 四、评估介绍
