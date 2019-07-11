@@ -17,8 +17,8 @@ class Preparator
     * */
   override
   def prepare(sc: SparkContext, trainingData: TrainingData): PreparedData = {
-    //默认知识简单复制一下，然后返回PreparedData类型。下一步是传给Algorithm的train方法
-
+    //默认简单复制一下，然后返回PreparedData类型。
+    //下一步是传给Algorithm的train方法
     new PreparedData(ratings = trainingData.ratings)
   }
 }

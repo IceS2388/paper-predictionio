@@ -72,12 +72,8 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     //3.生成指定用户喜欢的电影
     val userLikesBeyondMean = userRatings.map(r => {
 
-      var sum = 0D
-      var count = 0
-      r._2.map(rt => {
-        sum += rt.rating
-        count += 1
-      })
+      val sum = r._2.map(r=>r.rating).sum
+      val count = r._2.size
 
       //用户浏览的小于numNearst，全部返回
       val userLikes = if (count < ap.topNLikes) {
@@ -107,8 +103,21 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
       return 0D
     }
 
-    //u1与u2共同的物品ID
-    val comMap = new mutable.HashMap[String, (Double, Double)]
+    //1.求u1与u2共同的物品ID
+    val comItemSet= userHashRatings(userid1).map(r=>r.item).toSet.intersect(userHashRatings(userid2).map(r=>r.item).toSet)
+
+    if(comItemSet.size<ap.pearsonThreasholds){
+      return 0D
+    }
+
+    val user1ComData= userHashRatings(userid1).filter(r=>comItemSet.contains(r.item)).map(r=>(r.item,r.rating)).toMap
+    val user2ComData=userHashRatings(userid2).filter(r=>comItemSet.contains(r.item)).map(r=>(r.item,r.rating)).toMap
+
+    val comItems= comItemSet.map(r=>(r,(user1ComData(r),user2ComData(r))))
+
+
+
+   /* val comMap = new mutable.HashMap[String, (Double, Double)]
 
     userHashRatings.get(userid1).get.map(u1 => {
       //添加u1拥有的物品
@@ -129,25 +138,20 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     //小于阀值，直接返回
     if (comItems.size < ap.pearsonThreasholds) {
       return 0D
-    }
+    }*/
 
 
     //计算平均值和标准差
-    var count = 0
-    var sum1 = 0D
-    var sum2 = 0D
 
-    comItems.map(i => {
-      sum1 += i._2._1
-      sum2 += i._2._2
-      count += 1
-    })
+    val count=comItems.size
+    val sum1=comItems.map(item=>item._2._1).sum
+    val sum2=comItems.map(item=>item._2._2).sum
 
     //平均值
     val x_mean = sum1 / count
     val y_mean = sum2 / count
 
-    //标准差
+    //标准差:todo:使用累加器
     var xy = 0D
     var x_var = 0D
     var y_var = 0D

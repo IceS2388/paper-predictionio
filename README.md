@@ -101,6 +101,7 @@ object RecommendationEngine extends EngineFactory {
     }
 ```
 ### 3.4 实现算法和模型
+//TODO 实现随机森林算法
 ...
 ### 3.5 修改`Serving.scala`文件，集成各个算法的推荐结果
 ```scala
