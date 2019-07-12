@@ -55,7 +55,7 @@ $ sbt clean package
 ```
 **训练模板**
 ```shell
-$ pio-docker train  -- --driver-memory 3g --executor-memory 5g --verbose
+$ pio-docker train  -- --driver-memory 4g --executor-memory 5g --verbose
 ```
 **部署模板**
 ```shell
