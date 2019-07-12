@@ -17,7 +17,7 @@ case class DataSourceParams(
   * */
 class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,EmptyEvaluationInfo, Query, ActualResult] {
 
-  @transient lazy val logger = Logger[this.type]
+  @transient lazy val logger: Logger = Logger[this.type]
 
   def getRatings(sc: SparkContext): RDD[Rating] = {
 
@@ -40,7 +40,7 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
       val rating = try {
         val ratingValue: Double = eventRecord.event match {
           case "rate" => eventRecord.properties.get[Double]("rating")
-          case _ => throw new Exception(s"Unexpected event ${eventRecord} is read.")
+          case _ => throw new Exception(s"Unexpected event $eventRecord is read.")
         }
         // entityId and targetEntityId is String
         Rating(eventRecord.entityId,
@@ -48,7 +48,7 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
           ratingValue)
       } catch {
         case e: Exception => {
-          logger.error(s"Cannot convert ${eventRecord} to Rating. Exception: ${e}.")
+          logger.error(s"Cannot convert $eventRecord to Rating. Exception: $e.")
           throw e
         }
       }

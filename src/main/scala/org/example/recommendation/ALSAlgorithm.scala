@@ -23,7 +23,7 @@ case class ALSAlgorithmParams(
 class ALSAlgorithm(val ap: ALSAlgorithmParams)
   extends PAlgorithm[PreparedData, ALSModel, Query, PredictedResult] {
 
-  @transient lazy val logger = Logger[this.type]
+  @transient lazy val logger: Logger = Logger[this.type]
 
   if (ap.numIterations > 30) {//迭代次数超过30警示信息。
     logger.warn(
@@ -148,12 +148,12 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
   def batchPredict(model: ALSModel, queries: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
 
     val userIxQueries: RDD[(Int, (Long, Query))] = queries
-    .map { case (ix, query) => {
-      //TODO:ix是什么？
+    .map { case (ix, query) =>
+
       // If user not found, then the index is -1
       val userIx = model.userStringIntMap.get(query.user).getOrElse(-1)
       (userIx, (ix, query))
-    }}
+    }
 
     // Cross product of all valid users from the queries and products in the model.
     val usersProducts: RDD[(Int, Int)] = userIxQueries
@@ -174,7 +174,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
     userIxQueries.leftOuterJoin(userRatings)
     .map {
       // When there are ratings
-      case (userIx, ((ix, query), Some(ratings))) => {
+      case (_, ((ix, query), Some(ratings))) =>
         //对评分进行排序
         val topItemScores: Array[ItemScore] = ratings
         .toArray
@@ -184,14 +184,13 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
           //转换：从索引到物品ID
           model.itemStringIntMap.inverse(rating.product),
           rating.rating) }
-
         (ix, PredictedResult(itemScores = topItemScores))
-      }
+
         //当用户不存在于训练数据集中时
-      case (userIx, ((ix, query), None)) => {
+      case (userIx, ((ix, _), None)) =>
         require(userIx == -1)
         (ix, PredictedResult(itemScores = Array.empty))
-      }
+
     }
   }
 }
