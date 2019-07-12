@@ -3,11 +3,17 @@ package org.example.recommendation
 import grizzled.slf4j.Logger
 import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.tree.RandomForest
+import org.apache.spark.rdd.RDD
+
 import scala.collection.mutable
+
 
 /**
   * PUS的全称：PearsonUserCorrelationSimilarity
-  * */
+  **/
 
 /**
   * @param pearsonThreasholds 计算Pearson系数时，最低用户之间共同拥有的元素个数。若相同元素个数的阀值，低于该阀值，相似度为0.
@@ -18,8 +24,9 @@ case class PUSAlgorithmParams(pearsonThreasholds: Int, topNLikes: Int) extends P
 
 /** 功能：
   * 实现用户Pearson相似度算法。
+  *
   * @param ap 该算法在engine.json中设置的参数
-  * */
+  **/
 class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, PUSModel, Query, PredictedResult] {
 
   @transient lazy val logger = Logger[this.type]
@@ -35,15 +42,14 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     require(!data.ratings.take(1).isEmpty, "评论数据不能为空！")
 
-    //1.转换为HashMap,方便计算Pearson相似度
-    val userRatings = data.ratings.groupBy(r => r.user).collectAsMap().toMap
+    //1.转换为HashMap,方便计算Pearson相似度,这是个昂贵的操作
+    val userRatings: RDD[(String, Iterable[Rating])] = data.ratings.groupBy(r => r.user)
 
 
-    //2.获取用户ID的向量
-    val users = userRatings.keySet.toList.sortBy(_.toDouble)
+    //2.获取用户的ID
+    val users = data.ratings.map(r => r.user).distinct().sortBy(_.toInt, true)
 
     val userNearestPearson = new mutable.HashMap[String, List[(String, Double)]]()
-
     for {
       u1 <- users
     } {
@@ -69,14 +75,16 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
       userNearestPearson.put(u1, maxPearson.toList.sortBy(_._2).reverse)
     }
 
-    //3.生成指定用户喜欢的电影
-    val userLikesBeyondMean = userRatings.map(r => {
+    //3.从用户的观看记录中选择用户喜欢的电影,用于后续的用户与用户之间的推荐
+    val userLikesBeyondMean: RDD[(String, List[Rating])] = userRatings.map(r => {
 
-      val sum = r._2.map(r=>r.rating).sum
+      //当前用户的平均评分
+      val sum = r._2.map(r => r.rating).sum
       val count = r._2.size
 
       //用户浏览的小于numNearst，全部返回
       val userLikes = if (count < ap.topNLikes) {
+        //排序后，直接返回
         r._2.toList.sortBy(_.rating).reverse
       } else {
         val mean = sum / count
@@ -86,7 +94,36 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
       (r._1, userLikes)
     })
 
-    new PUSModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userNearestPearson.toSeq), sc.parallelize( userLikesBeyondMean.toSeq))
+    //4.训练RandomForestModel
+    //4.1 计算用户的平均分
+    val userMean = userRatings.map(r => {
+      val sum = r._2.toSeq.map(r2 => r2.rating).sum
+      val size = r._2.size
+      (r._1, sum / size)
+    }).collectAsMap()
+
+    //4.2 处理处理数据格式
+    val trainingData = data.ratings.map(r => {
+      val like = if (r.rating > userMean(r.user)) 1.0 else 0D
+      LabeledPoint(like, Vectors.dense(r.user.toInt, r.item.toInt))
+    })
+
+    //4.3 准备模型参数
+    //分类数目
+    val numClass = 2
+    //设定输入数据格式
+    val categoricalFeaturesInfo = Map[Int, Int]()
+
+    val numTrees = 5
+    val featureSubsetStrategy: String = "auto"
+    val impurity: String = "gini"
+    val maxDepth: Int = 5
+    val maxBins: Int = 100
+
+
+    val model = RandomForest.trainClassifier(trainingData, numClass, categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins)
+
+    new PUSModel(userRatings, sc.parallelize(userNearestPearson.toSeq), userLikesBeyondMean, model)
 
   }
 
@@ -97,65 +134,48 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     **/
   private def getPearson(userid1: String,
                          userid2: String,
-                         userHashRatings: Map[String, Iterable[Rating]]): Double = {
-    if (!userHashRatings.contains(userid1) || !userHashRatings.contains(userid2)) {
+                         userHashRatings: RDD[(String, Iterable[Rating])]): Double = {
+
+    val user1DataRDD: RDD[(String, Iterable[Rating])] = userHashRatings.filter(r => r._1 == userid1)
+    val user2DataRDD: RDD[(String, Iterable[Rating])] = userHashRatings.filter(r => r._1 == userid2)
+
+    if (!(user1DataRDD.count() == 1 && user1DataRDD.first()._2.nonEmpty &&
+      user2DataRDD.count() == 1 && user2DataRDD.first()._2.nonEmpty)) {
       //不相关
       return 0D
     }
 
-    //1.求u1与u2共同的物品ID
-    val comItemSet= userHashRatings(userid1).map(r=>r.item).toSet.intersect(userHashRatings(userid2).map(r=>r.item).toSet)
+    val user1Data = user1DataRDD.first()._2
+    val user2Data = user2DataRDD.first()._2
 
-    if(comItemSet.size<ap.pearsonThreasholds){
+    //1.求u1与u2共同的物品ID
+    val comItemSet = user1Data.map(r => r.item).toSet.intersect(user2Data.map(r => r.item).toSet)
+    if (comItemSet.size < ap.pearsonThreasholds) {
+      //小于共同物品的阀值，直接退出
       return 0D
     }
 
-    val user1ComData= userHashRatings(userid1).filter(r=>comItemSet.contains(r.item)).map(r=>(r.item,r.rating)).toMap
-    val user2ComData=userHashRatings(userid2).filter(r=>comItemSet.contains(r.item)).map(r=>(r.item,r.rating)).toMap
+    val user1ComData = user1Data.filter(r => comItemSet.contains(r.item)).map(r => (r.item, r.rating)).toMap
+    val user2ComData = user2Data.filter(r => comItemSet.contains(r.item)).map(r => (r.item, r.rating)).toMap
 
-    val comItems= comItemSet.map(r=>(r,(user1ComData(r),user2ComData(r))))
-
-
-
-   /* val comMap = new mutable.HashMap[String, (Double, Double)]
-
-    userHashRatings.get(userid1).get.map(u1 => {
-      //添加u1拥有的物品
-      comMap.put(u1.item, (u1.rating, -1D))
-    })
-
-    userHashRatings.get(userid2).get.map(u2 => {
-      //添加u2拥有的物品
-      if (comMap.contains(u2.item)) {
-        val u1_rating = comMap.get(u2.item).get._1
-        comMap.update(u2.item, (u1_rating, u2.rating))
-      }
-    })
-
-    //两者共同的拥有的物品及其评分
-    val comItems = comMap.filter(r => r._2._1 >= 0 && r._2._2 >= 0)
-
-    //小于阀值，直接返回
-    if (comItems.size < ap.pearsonThreasholds) {
-      return 0D
-    }*/
-
+    //2.把共同物品转变为对应的评分
+    val comItems = comItemSet.map(r => (r, (user1ComData(r), user2ComData(r))))
 
     //计算平均值和标准差
-
-    val count=comItems.size
-    val sum1=comItems.map(item=>item._2._1).sum
-    val sum2=comItems.map(item=>item._2._2).sum
+    val count = comItems.size
+    val sum1 = comItems.map(item => item._2._1).reduce(_ + _)
+    val sum2 = comItems.map(item => item._2._2).reduce(_ + _)
 
     //平均值
     val x_mean = sum1 / count
     val y_mean = sum2 / count
 
-    //标准差:todo:使用累加器
+    //标准差
     var xy = 0D
     var x_var = 0D
     var y_var = 0D
-    comItems.map(i => {
+    comItems.foreach(i => {
+
       val x_vt = i._2._1 - x_mean
       val y_vt = i._2._2 - y_mean
       xy += x_vt * y_vt
@@ -170,7 +190,7 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
 
 
   override def predict(model: PUSModel, query: Query): PredictedResult = {
-    val uMap=model.userMap.collectAsMap()
+    val uMap = model.userMap.collectAsMap()
     if (!uMap.contains(query.user)) {
       //该用户没有过评分记录，返回空值
       logger.warn(s"该用户没有过评分记录，无法生成推荐！${query.user}")
@@ -192,9 +212,9 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
     val sawItem = uMap.get(query.user).get.map(r => (r.item, r.rating)).toMap
 
     //存储结果的列表
-    val result = new mutable.HashMap[String, Double]()
+    val pearsonResult = new mutable.HashMap[String, Double]()
     //与当前查询用户相似度最高的用户，其观看过的且查询用户未看过的电影列表。
-    userPearson.get(query.user).get.map(r => {
+    userPearson.get(query.user).get.foreach(r => {
       //r._1 //相似的userID
       // r._2 //相似度
       if (userLikes.contains(r._1)) {
@@ -204,24 +224,33 @@ class PUSAlgorithm(val ap: PUSAlgorithmParams) extends PAlgorithm[PreparedData, 
           //r1.rating
           if (!sawItem.contains(r1.item)) {
             //当前用户未观看过的电影r1.item
-            if (result.contains(r1.item)) {
+            if (pearsonResult.contains(r1.item)) {
               //这是已经在推荐列表中
-              result.update(r1.item, result.get(r1.item).get + r1.rating * r._2)
+              pearsonResult.update(r1.item, pearsonResult.get(r1.item).get + r1.rating * r._2)
             } else {
-              result.put(r1.item, r1.rating * r._2)
+              pearsonResult.put(r1.item, r1.rating * r._2)
             }
           }
         })
       }
     })
+
+
+    val randomModel = model.randomForestModel
+    val filted = pearsonResult.filter(r => {
+      val v = Vectors.dense(query.user.toDouble, r._1.toDouble)
+      randomModel.predict(v) == 1.0
+    })
+
+
     //排序取TopN
-    val preResult=result.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => (r._1, r._2))
+    val preResult = filted.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => (r._1, r._2))
 
     //归一化并加上权重
-    val sum=preResult.map(r=>r._2).sum
-    val PUSWeight=2
-    val returnResult=result.map(r=>{
-      ItemScore(r._1,r._2/sum*PUSWeight)
+    val sum = preResult.map(r => r._2).sum
+    val PUSWeight = 2
+    val returnResult = pearsonResult.map(r => {
+      ItemScore(r._1, r._2 / sum * PUSWeight)
     })
 
     //排序，返回结果
