@@ -62,6 +62,7 @@ object RecommendationEngine extends EngineFactory {
       classOf[DataSource],
       classOf[Preparator],
       Map(
+        "pn" -> classOf[NeurAlgorithm],
         "als" -> classOf[ALSAlgorithm],
         "prt" -> classOf[PRTAlgorithm],
         "mv" -> classOf[MViewAlgorithm]),

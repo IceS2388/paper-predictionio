@@ -9,6 +9,13 @@
   },
   "algorithms": [
     {
+      "name": "pn",
+      "params": {
+        "pearsonThreasholds": 5,
+        "topNLikes": 150
+      }
+    }
+  ,{
       "name": "als",
       "params": {
         "rank": 10,
