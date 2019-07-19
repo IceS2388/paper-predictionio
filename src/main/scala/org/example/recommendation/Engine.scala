@@ -63,7 +63,7 @@ object RecommendationEngine extends EngineFactory {
       classOf[Preparator],
       Map(
         "als" -> classOf[ALSAlgorithm],
-        "pus" -> classOf[PUSAlgorithm],
+        "prt" -> classOf[PRTAlgorithm],
         "mv" -> classOf[MViewAlgorithm]),
       classOf[Serving])
   }

@@ -18,9 +18,9 @@
       }
     }
   ,{
-      "name": "pus",
+      "name": "prt",
       "params": {
-        "pearsonThreasholds": 10,
+        "pearsonThreasholds": 5,
         "topNLikes": 150
       }
     }

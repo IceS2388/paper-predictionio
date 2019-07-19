@@ -97,7 +97,7 @@ object EngineParamsList extends EngineParamsGenerator {
   // a different algorithm params value.
   engineParamsList = Seq(
     baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10, 20, 0.01, Some(3L))))),
-    baseEP.copy(algorithmParamsList = Seq(("pus", PUSAlgorithmParams(10, 50)))),
+    baseEP.copy(algorithmParamsList = Seq(("pus", PRTAlgorithmParams(10, 50)))),
     baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300))))
   )
 }

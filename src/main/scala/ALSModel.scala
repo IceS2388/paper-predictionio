@@ -24,11 +24,11 @@ class ALSModel(
   override
   def save(id: String, params: ALSAlgorithmParams,sc: SparkContext): Boolean = {
 
-    sc.parallelize(Seq(rank)).saveAsObjectFile(s"/tmp/${id}/rank")
-    userFeatures.saveAsObjectFile(s"/tmp/${id}/userFeatures")
-    productFeatures.saveAsObjectFile(s"/tmp/${id}/productFeatures")
-    sc.parallelize(Seq(userStringIntMap)).saveAsObjectFile(s"/tmp/${id}/userStringIntMap")
-    sc.parallelize(Seq(itemStringIntMap)).saveAsObjectFile(s"/tmp/${id}/itemStringIntMap")
+    sc.parallelize(Seq(rank)).saveAsObjectFile(s"/tmp/als/${id}/rank")
+    userFeatures.saveAsObjectFile(s"/tmp/als/${id}/userFeatures")
+    productFeatures.saveAsObjectFile(s"/tmp/als/${id}/productFeatures")
+    sc.parallelize(Seq(userStringIntMap)).saveAsObjectFile(s"/tmp/als/${id}/userStringIntMap")
+    sc.parallelize(Seq(itemStringIntMap)).saveAsObjectFile(s"/tmp/als/${id}/itemStringIntMap")
     true
   }
 
@@ -49,12 +49,12 @@ object ALSModel  extends PersistentModelLoader[ALSAlgorithmParams, ALSModel] {
 
   def apply(id: String, params: ALSAlgorithmParams,sc: Option[SparkContext]) = {
     new ALSModel(
-      rank = sc.get.objectFile[Int](s"/tmp/${id}/rank").first,
-      userFeatures = sc.get.objectFile(s"/tmp/${id}/userFeatures"),
-      productFeatures = sc.get.objectFile(s"/tmp/${id}/productFeatures"),
+      rank = sc.get.objectFile[Int](s"/tmp/als/${id}/rank").first,
+      userFeatures = sc.get.objectFile(s"/tmp/als/${id}/userFeatures"),
+      productFeatures = sc.get.objectFile(s"/tmp/als/${id}/productFeatures"),
       userStringIntMap = sc.get
-        .objectFile[BiMap[String, Int]](s"/tmp/${id}/userStringIntMap").first,
+        .objectFile[BiMap[String, Int]](s"/tmp/als/${id}/userStringIntMap").first,
       itemStringIntMap = sc.get
-        .objectFile[BiMap[String, Int]](s"/tmp/${id}/itemStringIntMap").first)
+        .objectFile[BiMap[String, Int]](s"/tmp/als/${id}/itemStringIntMap").first)
   }
 }

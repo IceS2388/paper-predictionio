@@ -2,7 +2,12 @@ name := "paper-predictionio"
 
 scalaVersion := "2.11.12"
 libraryDependencies ++= Seq(
-"org.apache.predictionio" %% "apache-predictionio-core" % "0.14.0" % "provided",
-  "org.apache.spark"        %% "spark-mllib"              % "2.4.0" % "provided")
+  "org.apache.predictionio" %% "apache-predictionio-core" % "0.14.0" % "provided",
+  "org.apache.spark" %% "spark-mllib" % "2.4.0" % "provided",
+  "org.deeplearning4j" % "deeplearning4j-core" % "1.0.0-beta4",
+  "org.nd4j" % "nd4j-native-platform" % "1.0.0-beta4",
+  "org.datavec" % "datavec-api" % "1.0.0-beta4"
+
+)
 
 

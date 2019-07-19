@@ -65,7 +65,7 @@ $ pio-docker deploy
 ```shell
 $ pio-docker eval org.example.recommendation.RecommendationEvaluation org.example.recommendation.EngineParamsList -- --driver-memory 3g --executor-memory 5g --verbose
 ```
-**运行结果：**报错`OOM`需要阅读Spark相关文档后继续。
+**运行结果：**报错`OOM`需要阅读Spark相关文档后继续。或者删除临时文件夹中prediction相关的文件。
 ## 三、添加自定义算法的过程
 ### 3.1 添加对应的文件
 * 算法文件必须以Algorithm.scala结尾。(必须实现指定的`trait`)

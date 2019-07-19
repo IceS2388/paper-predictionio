@@ -13,8 +13,8 @@ class MViewModel(
   val userMap: RDD[(String, Iterable[String])],
   val mostView:RDD[(String,Int)]) extends PersistentModel[MViewAlgorithmParams] {
   override def save(id: String, params: MViewAlgorithmParams, sc: SparkContext): Boolean = {
-    userMap.saveAsObjectFile(s"/tmp/${id}/userMap")
-    mostView.saveAsObjectFile(s"/tmp/${id}/mostView")
+    userMap.saveAsObjectFile(s"/tmp/mv/${id}/userMap")
+    mostView.saveAsObjectFile(s"/tmp/mv/${id}/mostView")
     true
   }
   override def toString: String = {
@@ -27,8 +27,8 @@ object MViewModel extends PersistentModelLoader[MViewAlgorithmParams, MViewModel
   override def apply(id: String, params: MViewAlgorithmParams, sc: Option[SparkContext]): MViewModel = {
 
     new MViewModel(
-      userMap = sc.get.objectFile[(String, Iterable[String])](s"/tmp/${id}/userMap"),
-      mostView = sc.get.objectFile[(String,Int)](s"/tmp/${id}/mostView")
+      userMap = sc.get.objectFile[(String, Iterable[String])](s"/tmp/mv/${id}/userMap"),
+      mostView = sc.get.objectFile[(String,Int)](s"/tmp/mv/${id}/mostView")
     )
   }
 }
