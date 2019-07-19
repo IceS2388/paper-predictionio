@@ -173,11 +173,17 @@ object RecommendationEngine extends EngineFactory {
 
 ## Versions
 
+### v1.4.0
+* 对Pearson推荐的结果进行了随机森林的分类筛选。
+
+### v1.3.0
+* 修改Pearson推荐结果所占比重。
+
 ### v1.2.0
-增加访问量最大推荐。
+* 增加访问量最大推荐。
 
 ### v1.1.0
-在原有项目的基础上，添加Pearson相似度算法模块，并设置其Pearson系数的权重为1.5。
+* 在原有项目的基础上，添加Pearson相似度算法模块，并设置其Pearson系数的权重为1.5。
 
 ### v1.0.0
-基于[predictionio-template-recommender](https://github.com/IceS2388/predictionio-template-recommender)项目的基础上改进而来。
+* 基于[predictionio-template-recommender](https://github.com/IceS2388/predictionio-template-recommender)项目的基础上改进而来。
