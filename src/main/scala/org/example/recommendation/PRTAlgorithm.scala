@@ -138,9 +138,9 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     //归一化并加上权重
     val sum = preResult.map(r => r._2).sum
-    val PUSWeight = 2
+    val weight = 1
     val returnResult = pearsonResult.map(r => {
-      ItemScore(r._1, r._2 / sum * PUSWeight)
+      ItemScore(r._1, r._2 / sum * weight)
     })
 
     //排序，返回结果

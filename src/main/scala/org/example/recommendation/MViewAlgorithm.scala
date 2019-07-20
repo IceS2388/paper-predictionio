@@ -79,9 +79,9 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
     //实现归一化
     val sum= result.map(r=>r._2).sum
-    val mvWeight=1.5
+    val weight=1.0
     val returnResult=result.map(r=>{
-       ItemScore(r._1,r._2/sum*mvWeight)
+       ItemScore(r._1,r._2/sum*weight)
     })
 
     PredictedResult(returnResult)
