@@ -1,5 +1,3 @@
-import scala.collection.JavaConverters._
-
 name := "paper-predictionio"
 
 scalaVersion := "2.11.12"
@@ -8,12 +6,12 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-core" % "2.1.3" % "provided",
   "org.apache.spark" %% "spark-mllib" % "2.4.0" % "provided",
   "org.deeplearning4j" % "deeplearning4j-core" % "1.0.0-beta4",
-  "org.datavec" % "datavec-api" % "1.0.0-beta4" % "provided",
+  "org.datavec" % "datavec-api" % "1.0.0-beta4",
   "org.nd4j" % "nd4j-api" % "1.0.0-beta4"
 )
 
 assemblyMergeStrategy in assembly := {
-  case PathList("META-INF", xs@_*) => MergeStrategy.discard
   case PathList("org", "datavec", xs@_*) => MergeStrategy.concat
+  case PathList("META-INF", xs@_*) => MergeStrategy.discard
   case x => MergeStrategy.first
 }
