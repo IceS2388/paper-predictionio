@@ -1,14 +1,9 @@
 package org.example.recommendation
 
-import java.nio.file.Paths
-
 import grizzled.slf4j.Logger
 import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
-import org.datavec.api.records.reader.impl.csv.CSVRecordReader
-import org.datavec.api.split.FileSplit
-import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator
+
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration
 import org.deeplearning4j.nn.conf.layers.{DenseLayer, OutputLayer}
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
@@ -52,46 +47,35 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
       (r._1, sum / size)
     })
 
-    val rddWritables: RDD[String] = data.ratings.map(r => {
-      val like = if (r.rating > userMean(r.user)) 1.0 else 0D
-      s"$like,${r.user},${r.item}"
+
+    //TODO 必须保存到Hadoop，防止OOM
+    val nRows = data.ratings.count()
+    //用来输入的部分
+    val features=Nd4j.zeros(nRows, 2)
+    //用来验证的部分
+    val labels=Nd4j.zeros(nRows,1)
+    //行索引
+    var rowIndex=0
+    data.ratings.foreach(r => {
+      val like = if (r.rating > userMean(r.user)) 1.0F else 0F
+      features.put(rowIndex,0,r.user.toFloat)
+      features.put(rowIndex,1,r.item.toFloat)
+      labels.put(rowIndex,0,like)
+      rowIndex+=1
     })
 
-    //保存到Hadoop或者本地文件，防止OOM
-    val dataCSVPath = "/tmp/spark-warehouse/prediction.csv"
-
-    val pcsdFile = Paths.get(dataCSVPath).toFile
-    if (pcsdFile.exists()) {
-      pcsdFile.delete()
-    }
-    //保存临时文件
-    rddWritables.saveAsTextFile(dataCSVPath)
-
-    //测试打印
-    rddWritables.take(20) foreach println
 
 
-    val labelIndex = 0
-    val numLabelClasses = 2
     // 随机数种子
     val seed: Int = 123
     //学习速率
     val learningRate: Double = 0.006
-    //批次大小
-    val batchSize: Int = 50
-    //周期
-    val nEpochs: Int = 30
     //输入数据大小
     val numInputs: Int = 2
     //隐藏层的节点数量
     val numHiddenNodes = 20
     //输出数据
     val numOutputs: Int = 1
-
-    val rr = new CSVRecordReader(',')
-    rr.initialize(new FileSplit(pcsdFile))
-    val trainIter = new RecordReaderDataSetIterator(rr, batchSize, labelIndex, numLabelClasses)
-
 
     logger.info("Build model....")
     val conf = new NeuralNetConfiguration.Builder()
@@ -118,7 +102,7 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
     model.setListeners(new ScoreIterationListener(10))
 
     logger.info("Train model....")
-    model.fit(trainIter, nEpochs)
+    model.fit(features,labels)
 
     new NeurModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userLikesAndNearstPearson._2.toSeq), sc.parallelize(userLikesAndNearstPearson._1.toSeq), model)
   }
