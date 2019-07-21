@@ -23,7 +23,7 @@ $ cd paper-predictionio
 ```
 **生成模板**
 ```shell
-$ sbt clean package
+$ sbt clean assembly package
 ```
 **训练模板**
 ```shell

@@ -11,7 +11,7 @@ libraryDependencies ++= Seq(
 )
 
 assemblyMergeStrategy in assembly := {
-  case PathList("org", "datavec", xs@_*) => MergeStrategy.concat
+  case PathList("org", "datavec", xs@_*) => MergeStrategy.last
   case PathList("META-INF", xs@_*) => MergeStrategy.discard
   case x => MergeStrategy.first
 }
