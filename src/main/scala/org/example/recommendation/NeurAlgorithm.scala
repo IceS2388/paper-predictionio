@@ -2,35 +2,22 @@ package org.example.recommendation
 
 
 import java.io.File
-import java.nio.LongBuffer
-import java.util
+import java.nio.file.Paths
 
-import com.google.flatbuffers.FlatBufferBuilder
 import grizzled.slf4j.Logger
 import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
-import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
-import org.datavec.api.records.reader.impl.collection.CollectionRecordReader
 import org.datavec.api.records.reader.impl.csv.CSVRecordReader
 import org.datavec.api.split.FileSplit
-import org.datavec.spark.transform.misc.StringToWritablesFunction
 import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration
 import org.deeplearning4j.nn.conf.layers.{DenseLayer, OutputLayer}
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
 import org.deeplearning4j.nn.weights.WeightInit
 import org.deeplearning4j.optimize.listeners.ScoreIterationListener
-import org.deeplearning4j.spark.datavec.DataVecDataSetFunction
 import org.nd4j.linalg.activations.Activation
-import org.nd4j.linalg.api.blas.params.MMulTranspose
-import org.nd4j.linalg.api.buffer.{DataBuffer, DataType}
-import org.nd4j.linalg.api.ndarray.{INDArray, SparseFormat}
-import org.nd4j.linalg.api.shape.LongShapeDescriptor
-import org.nd4j.linalg.dataset.DataSet
 import org.nd4j.linalg.factory.Nd4j
-import org.nd4j.linalg.indexing.INDArrayIndex
-import org.nd4j.linalg.indexing.conditions.Condition
 import org.nd4j.linalg.learning.config.Nesterovs
 import org.nd4j.linalg.lossfunctions.LossFunctions.LossFunction
 
@@ -38,9 +25,9 @@ import scala.collection.mutable
 
 
 /**
-  * @Author:Administrator
-  * @Date:2019-07-19 21:11:37
-  * @Description:
+  * Author:IceS
+  * Date:2019-07-19 21:11:37
+  * Description:
   * NONE
   */
 
@@ -66,7 +53,6 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
       val size = r._2.size
       (r._1, sum / size)
     })
-    val recordReader = new CSVRecordReader(',')
 
     val rddWritables: RDD[String] = data.ratings.map(r => {
       val like = if (r.rating > userMean(r.user)) 1.0 else 0D
@@ -75,6 +61,12 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
 
     //保存到Hadoop或者本地文件，防止OOM
     val dataCSVPath = "/tmp/spark-warehouse/prediction.csv"
+
+    val pcsdFile = Paths.get(dataCSVPath).toFile
+    if (pcsdFile.exists()) {
+      pcsdFile.delete()
+    }
+    //保存临时文件
     rddWritables.saveAsTextFile(dataCSVPath)
 
     //测试打印
@@ -83,8 +75,6 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
 
     val labelIndex = 0
     val numLabelClasses = 2
-
-
     // 随机数种子
     val seed: Int = 123
     //学习速率
@@ -100,7 +90,7 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
     //输出数据
     val numOutputs: Int = 1
 
-    val rr = new CSVRecordReader()
+    val rr = new CSVRecordReader(',')
     rr.initialize(new FileSplit(new File(dataCSVPath)))
     val trainIter = new RecordReaderDataSetIterator(rr, batchSize, labelIndex, numLabelClasses)
 
@@ -184,8 +174,8 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
 
     val neurModel = model.neurModel
     val filtedResult = pearsonResult.filter(re => {
-      val arr= List(query.user.toFloat,re._1.toFloat).toArray
-      neurModel.predict(Nd4j.create(arr))(0)==1
+      val arr = List(query.user.toFloat, re._1.toFloat).toArray
+      neurModel.predict(Nd4j.create(arr))(0) == 1
     })
 
 
