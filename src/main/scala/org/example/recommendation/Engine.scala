@@ -30,15 +30,6 @@ case class ItemScore(
     s"item:${item},score:${score}"
   }
 }
-/**查询返回记过示例
-  * {"itemScores":[
-  * {"item":22,"score":4.07},
-  * {"item":62,"score":4.05},
-  * {"item":75,"score":4.04},
-  * {"item":68,"score":3.81}
-  * ]}
-  * */
-
 /**
   * 为验证的用户评分，Rating类型的数组。
   * 用户ID
