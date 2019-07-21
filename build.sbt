@@ -13,10 +13,6 @@ libraryDependencies ++= Seq(
 )
 
 assemblyMergeStrategy in assembly := {
-  case PathList("com", "google", xs @ _*)         => MergeStrategy.first
-  case PathList("org", "objenesis", xs @ _*)         => MergeStrategy.first
-  case PathList("org", "slf4j", xs @ _*)         => MergeStrategy.first
-  case x =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
-    oldStrategy(x)
+  case PathList("META-INF", xs@_*) => MergeStrategy.discard
+  case x => MergeStrategy.first
 }
