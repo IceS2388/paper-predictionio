@@ -1,7 +1,7 @@
 package org.example.recommendation
 
 
-import java.io.File
+
 import java.nio.file.Paths
 
 import grizzled.slf4j.Logger

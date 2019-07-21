@@ -60,10 +60,12 @@ Data Source从事件源读取数据，并转变成指定的格式。Data Prepara
 * 一个或多个数据算法。
 * 一个Serving。
 每个引擎各自独立处理数据和构建预测模型。因此，每个引擎的Serves只处理自己的预测结果。例如：你可为你的移动app部署两个引擎，一个为用户推荐新闻；另一个为用户建议新朋友。
-### 2.6 训练模型流程-从DASE视角
+
+### 3.6 训练模型流程-从DASE视角
 当你运行`pio train`时，如下的图展示了DASE工作流。
 ![训练图](http://predictionio.apache.org/images/engine-training-93bc1b69.png)
-### 2.7 相应查询流程-从DASE视角
+
+### 3.7 相应查询流程-从DASE视角
 当引擎收到`REST`查询后的响应流程图如下：
 ![响应流程图](http://predictionio.apache.org/images/engine-query-8d7311ff.png)
 
