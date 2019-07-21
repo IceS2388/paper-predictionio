@@ -56,7 +56,7 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
 
     val rddWritables: RDD[String] = data.ratings.map(r => {
       val like = if (r.rating > userMean(r.user)) 1.0 else 0D
-      s"${like},${r.user},${r.item}"
+      s"$like,${r.user},${r.item}"
     })
 
     //保存到Hadoop或者本地文件，防止OOM
@@ -91,7 +91,7 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
     val numOutputs: Int = 1
 
     val rr = new CSVRecordReader(',')
-    rr.initialize(new FileSplit(new File(dataCSVPath)))
+    rr.initialize(new FileSplit(pcsdFile))
     val trainIter = new RecordReaderDataSetIterator(rr, batchSize, labelIndex, numLabelClasses)
 
 
