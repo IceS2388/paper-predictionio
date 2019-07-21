@@ -12,4 +12,11 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-annotations" % "2.7.9"
 )
 
-
+assemblyMergeStrategy in assembly := {
+  case PathList("com", "google", xs @ _*)         => MergeStrategy.first
+  case PathList("org", "objenesis", xs @ _*)         => MergeStrategy.first
+  case PathList("org", "slf4j", xs @ _*)         => MergeStrategy.first
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}
