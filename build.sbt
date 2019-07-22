@@ -7,16 +7,18 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-mllib" % "2.4.0",
   "org.deeplearning4j" % "deeplearning4j-core" % "1.0.0-beta4",
   "org.datavec" % "datavec-api" % "1.0.0-beta4",
+  "org.datavec" %% "datavec-spark" % "1.0.0-beta4_spark_2",
+  "org.nd4j" % "nd4j-api" % "1.0.0-beta4",
   "org.nd4j" % "nd4j-native" % "1.0.0-beta4",
-  "org.nd4j" % "nd4j-native-platform" % "1.0.0-beta4",
-  "org.datavec" %% "datavec-spark" % "1.0.0-beta4_spark_2"
+  "org.nd4j" % "nd4j-native-platform" % "1.0.0-beta4"
 )
 
 assemblyMergeStrategy in assembly := {
   case PathList("org", "slf4j", xs@_*) => MergeStrategy.last
-  case PathList("org", "google","guava", xs@_*) => MergeStrategy.last
+  case PathList("org", "google", "guava", xs@_*) => MergeStrategy.last
+  case PathList("org", "nd4j", "nd4j-api", xs@_*) => MergeStrategy.concat
   case PathList("org", "nd4j", xs@_*) => MergeStrategy.concat
   case PathList("org", "datavec", xs@_*) => MergeStrategy.last
   case PathList("META-INF", xs@_*) => MergeStrategy.discard
-  case x => MergeStrategy.first
+  case _ => MergeStrategy.first
 }
