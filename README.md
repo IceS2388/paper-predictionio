@@ -13,8 +13,9 @@ http://predictionio.apache.org/resources/faq/#using-predictionio
 ```shell
 $ cd /root/predictionio/docker
 $ docker-compose -f docker-compose.yml -f pgsql/docker-compose.base.yml -f pgsql/docker-compose.meta.yml -f pgsql/docker-compose.event.yml -f pgsql/docker-compose.model.yml up &
-$ pio-docker status //若一切正常，应该看到`[INFO] [Management$] Your system is all ready to go.`
+$ pio-docker status
 ```
+若一切正常，应该看到`[INFO] [Management$] Your system is all ready to go.`
 **下载对应的模板 或者 更新模板**
 * 下载
 ```shell
