@@ -15,11 +15,17 @@ $ cd /root/predictionio/docker
 $ docker-compose -f docker-compose.yml -f pgsql/docker-compose.base.yml -f pgsql/docker-compose.meta.yml -f pgsql/docker-compose.event.yml -f pgsql/docker-compose.model.yml up &
 $ pio-docker status //若一切正常，应该看到`[INFO] [Management$] Your system is all ready to go.`
 ```
-**下载对应的模板**
+**下载对应的模板 或者 更新模板**
+* 下载
 ```shell
 $ cd templates/
 $ git clone https://github.com/IceS2388/paper-predictionio.git
 $ cd paper-predictionio
+```
+* 更新
+```shell
+$ cd templates/paper-predictionio
+$ git pull origin develop
 ```
 **生成模板**
 ```shell
