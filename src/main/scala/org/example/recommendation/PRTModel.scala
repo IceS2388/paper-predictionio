@@ -21,10 +21,10 @@ class PRTModel(
               ) extends PersistentModel[PRTAlgorithmParams] {
   override def save(id: String, params: PRTAlgorithmParams, sc: SparkContext): Boolean = {
 
-    userMap.saveAsObjectFile(s"/tmp/${this.getClass.getName}/$id/userMap")
-    userNearestPearson.saveAsObjectFile(s"/tmp/${this.getClass.getName}/$id/userNearestPearson")
-    userLikesBeyondMean.saveAsObjectFile(s"/tmp/${this.getClass.getName}/$id/userLikesBeyondMean")
-    randomForestModel.save(sc,s"/tmp/${this.getClass.getName}/$id/randomForestModel")
+    userMap.saveAsObjectFile(s"/tmp/PR/$id/userMap")
+    userNearestPearson.saveAsObjectFile(s"/tmp/PR/$id/userNearestPearson")
+    userLikesBeyondMean.saveAsObjectFile(s"/tmp/PR/$id/userLikesBeyondMean")
+    randomForestModel.save(sc,s"/tmp/PR/$id/randomForestModel")
     true
   }
 
@@ -38,10 +38,10 @@ class PRTModel(
 object PRTModel extends PersistentModelLoader[PRTAlgorithmParams, PRTModel] {
   override def apply(id: String, params: PRTAlgorithmParams, sc: Option[SparkContext]): PRTModel = {
     new PRTModel(
-      userMap = sc.get.objectFile[(String, Iterable[Rating])](s"/tmp/${this.getClass.getName}/$id/userMap"),
-      userNearestPearson = sc.get.objectFile[(String, List[(String, Double)])](s"/tmp/${this.getClass.getName}/$id/userNearestPearson"),
-      userLikesBeyondMean = sc.get.objectFile[(String, List[Rating])](s"/tmp/${this.getClass.getName}/$id/userLikesBeyondMean"),
-      RandomForestModel.load(sc.get,s"/tmp/${this.getClass.getName}/$id/randomForestModel")
+      userMap = sc.get.objectFile[(String, Iterable[Rating])](s"/tmp/PR/$id/userMap"),
+      userNearestPearson = sc.get.objectFile[(String, List[(String, Double)])](s"/tmp/PR/$id/userNearestPearson"),
+      userLikesBeyondMean = sc.get.objectFile[(String, List[Rating])](s"/tmp/PR/$id/userLikesBeyondMean"),
+      RandomForestModel.load(sc.get,s"/tmp/PR/$id/randomForestModel")
     )
   }
 }
