@@ -39,7 +39,7 @@ class NBModel(
 object NBModel extends PersistentModelLoader[NBAlgorithmParams, NBModel] {
   override def apply(id: String, params: NBAlgorithmParams, sc: Option[SparkContext]): NBModel = {
     new NBModel(
-      userMap = sc.get.objectFile[(String, Iterable[Rating])](s"/${this.getClass.getName}/PN/$id/userMap"),
+      userMap = sc.get.objectFile[(String, Iterable[Rating])](s"/tmp/${this.getClass.getName}/$id/userMap"),
       userNearestPearson = sc.get.objectFile[(String, List[(String, Double)])](s"/tmp/${this.getClass.getName}/$id/userNearestPearson"),
       userLikesBeyondMean = sc.get.objectFile[(String, List[Rating])](s"/tmp/${this.getClass.getName}/$id/userLikesBeyondMean"),
       NaiveBayesModel.load(sc.get, s"/tmp/${this.getClass.getName}/$id/navieBayesModel")
