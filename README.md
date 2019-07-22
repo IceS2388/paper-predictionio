@@ -185,6 +185,9 @@ object RecommendationEngine extends EngineFactory {
 
 ## Versions
 
+### v1.5.0
+* 对Pearson推荐的结果进行了贝叶斯分类筛选。
+
 ### v1.4.0
 * 对Pearson推荐的结果进行了随机森林的分类筛选。
 
