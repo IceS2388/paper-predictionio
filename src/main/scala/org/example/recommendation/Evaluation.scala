@@ -1,6 +1,8 @@
 package org.example.recommendation
 
 import org.apache.predictionio.controller._
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
 /**
   * 在本推荐引擎中，使用了2个维度的指标，来评价数据。
@@ -12,54 +14,73 @@ import org.apache.predictionio.controller._
   *
   * @param k 表示当前所在的测试集索引号
   **/
-case class PrecisionAtK()
-  extends OptionAverageMetric[EmptyEvaluationInfo, Query, PredictedResult, ActualResult] {
+case class VerifiedResult (val precision:Double,val recall:Double,val f1:Double){
 
-  override
-  def calculate(q: Query, p: PredictedResult, a: ActualResult): Option[Double] = {
-
-    //1.获取所有按照用户ID分组的评分记录
-    //a.ratings//是某个用户评估的Rating。
-    val items = a.ratings.map(r => r.item).toSet //当前用户评分的item集合
-
-    if (items.size == 0) {
-      return Some(0)
-    }
-
-    //2.获取推荐引擎所推荐的结果
-    val recommendItems = p.itemScores.map(r => r.item).toSet
-
-    //3.计算指标
-    //命中的个数
-    val hit = items.intersect(recommendItems).size
-    val precision = hit * 1.0 / recommendItems.size
-
-    Some(precision)
-  }
 }
 
-/**
-  * 计算召回率
-  **/
-case class RecallAtK() extends OptionAverageMetric[EmptyEvaluationInfo, Query, PredictedResult, ActualResult] {
+case class Recommendation
+  extends Metric[EmptyEvaluationInfo, Query, PredictedResult, ActualResult,VerifiedResult]{
 
   override
-  def calculate(q: Query, p: PredictedResult, a: ActualResult): Option[Double] = {
-    //1.获取所有按照用户ID分组的评分记录
-    val items = a.ratings.map(r => r.item).toSet //当前用户评分的item集合
+  def calculate(sc: SparkContext, evalDataSet: Seq[(EmptyEvaluationInfo, RDD[(Query, PredictedResult, ActualResult)])]): VerifiedResult = {
+    /**
+      *               P(Predicted)      N(Predicted)
+      *
+      * P(Actual)     True Positive      False Negative
+      *
+      * N(Actual)     False Positive     True Negative
+      *
+      * Precision = TP / (TP + FP)      分母为预测时推荐的记录条数
+      *
+      * Recall = TP / (TP + FN)         分母为测试时该用户拥有的测试记录条数
+      *
+      * F1 = 2TP / (2TP + FP + FN)
+      * */
+     val finalV= evalDataSet.map(r=>{
+      //r._2 RDD[(Query, PredictedResult, ActualResult)])] 这是每条参数的对应每次的预测结果
 
-    if (items.size == 0) {
-      return Some(0)
-    }
+      val each= r._2.map(p=>{
+        //这里是每一条结果
+        //p._1.user
+        //p._1.num
+        //p._2.itemScores
+        //p._3.ratings
+        //改用户的测试物品
+        val actuallyItems=p._3.ratings.map(ar=>ar.item)
+        val predictedItems=p._2.itemScores.map(ir=>ir.item)
+        if (predictedItems.size==0){
+          //返回每一个用户ID的验证结果
+          VerifiedResult(0,0,0)
+        }else{
+          //命中的数量TP
+          val hit=actuallyItems.toSet.intersect(predictedItems.toSet).size
+          //Precision = TP / (TP + FP)
+          val precision = hit * 1.0 / predictedItems.size
+          //Recall = TP / (TP + FN)
+          val recall = hit * 1.0 / actuallyItems.size
+          //F1 = 2TP / (2TP + FP + FN)
+          val f1=2*hit/(predictedItems.size+actuallyItems.size)
+          //返回每一个用户ID的验证结果
+          VerifiedResult(precision,recall,f1)
+        }
+      })
 
-    //2.获取推荐引擎所推荐的结果
-    val recommendItems = p.itemScores.map(r => r.item).toSet
+      val count=each.count()
+      val t: VerifiedResult =each.reduce((v1, v2)=>{
+        VerifiedResult(v1.precision+v2.precision,v1.recall+v2.recall,v1.f1+v2.f1)
+      })
 
-    //3.计算指标
-    val hit = items.intersect(recommendItems).size
-    val recall = hit * 1.0 / items.size
-    Some(recall)
+      //返回这个参数下：所有验证结果的平均值
+      VerifiedResult(t.precision/count,t.recall/count,t.f1/count)
+    })
+
+    val fCount=finalV.size
+    val tTop=finalV.reduce((v1,v2)=>{
+      VerifiedResult(v1.precision+v2.precision,v1.recall+v2.recall,v1.f1+v2.f1)
+    })
+    VerifiedResult(tTop.precision/fCount,tTop.recall/fCount,tTop.f1/fCount)
   }
+
 }
 
 
@@ -72,29 +93,38 @@ object RecommendationEvaluation extends Evaluation {
     //度量评估
     MetricEvaluator(
       //设置评估参数
-      metric = PrecisionAtK(),
+      metric = Recommendation(),
       otherMetrics = Seq(
-        RecallAtK()
+
       ), "evalResult"))
 }
 
 object EngineParamsList extends EngineParamsGenerator {
-  // Define list of EngineParams used in Evaluation
+  //EngineParamsList用于定义评估的参数列表
 
-  // First, we define the base engine params. It specifies the appName from which
-  // the data is read, and a evalParams parameter is used to define the
-  // cross-validation.
+  //首先，定义基本的引擎参数。它的appName指定了读取的数据源，评估参数evalParams用于定义交叉验证。
+  //DataSourceEvalParams:第一个10是分成10份，第二个是推荐的个数
   private[this] val baseEP = EngineParams(
-    dataSourceParams = DataSourceParams(appName = "MyApp1", evalParams = Some(DataSourceEvalParams(10, 10))))
+    dataSourceParams = DataSourceParams(appName = "MyApp1", evalParams = Some(DataSourceEvalParams(10, 20))))
 
 
-  // Second, we specify the engine params list by explicitly listing all
-  // algorithm parameters. In this case, we evaluate 3 engine params, each with
-  // a different algorithm params value.
+
+  //然后，精确指定每个引擎的参数列表，同一个引擎可以有多个不同的测试参数。
   engineParamsList = Seq(
     baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10, 20, 0.01, Some(3L))))),
-    baseEP.copy(algorithmParamsList = Seq(("pus", PRTAlgorithmParams(5, 20,20)))),
-    baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300))))
+    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20,20)))),
+    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20,20)))),
+    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20,40)))),
+    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20,40)))),
+
+    baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),
+    baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(200)))),
+    baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300)))),
+
+    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20,20)))),
+    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 20,20)))),
+    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20,40)))),
+    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 20,40))))
   )
 }
 

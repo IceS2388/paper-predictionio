@@ -128,6 +128,7 @@ class ALSAlgorithm(val ap: ALSAlgorithmParams)
 
       //添加归一化
       val sum=tempResult.map(r=>r._2).sum
+      if(sum==0) return PredictedResult(Array.empty)
       val weight=1.0
       val itemScores=tempResult.map(r=>{
         ItemScore(r._1,r._2/sum*weight)

@@ -81,15 +81,17 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
 
     val kFold = evalParams.kFold
 
-    //生成(RDD[Rating],Long)类型的元组，Long是唯一的
+    //获取所有的数据，生成(RDD[Rating],Long)类型的元组，Long是唯一的
     val ratings: RDD[(Rating, Long)] = getRatings(sc).zipWithUniqueId
+    //缓存便于多次使用
     ratings.cache
 
-    //分割数据,分成k份
-    (0 until kFold).map { idx => {//idxsh是zipWithUniqueId中每条评分记录Rating生成对应且唯一的标志Long型数据
-      //训练集:Rating的索引模KFold，若余数不等于当前idx，则添加到训练集
+    //分割数据,分成k份。[0,KFold)
+    (0 until kFold).map { idx => {//idx每份数据的索引
+
+      //训练集:每条Rating的索引%KFold，若余数不等于当前idx，则添加到训练集
       val trainingRatings = ratings.filter(_._2 % kFold != idx).map(_._1)
-      //测试集,若余数等idx则为测试集.idx的取值从0->kFold
+      //测试集,若余数等idx则为测试集.
       val testingRatings = ratings.filter(_._2 % kFold == idx).map(_._1)
       //测试集按照用户ID进行分组，便于验证。
       val testingUsers: RDD[(String, Iterable[Rating])] = testingRatings.groupBy(_.user)
@@ -98,7 +100,9 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
       (new TrainingData(trainingRatings),
         new EmptyEvaluationInfo(),
         testingUsers.map {
-          case (user, ratings) => (Query(user, evalParams.queryNum), ActualResult(ratings.toArray))
+          case (user, testRatings) => (Query(user, evalParams.queryNum), ActualResult(testRatings.toArray))
+          //(String, Iterable[Rating])
+          //(user, Iterable[Rating])
         }
       )
     }}
