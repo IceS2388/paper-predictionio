@@ -3,16 +3,10 @@ package org.example.recommendation
 import grizzled.slf4j.Logger
 import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
+import org.apache.spark.mllib.classification.NaiveBayes
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.regression.LabeledPoint
 
-import org.deeplearning4j.nn.conf.NeuralNetConfiguration
-import org.deeplearning4j.nn.conf.layers.{DenseLayer, OutputLayer}
-import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
-import org.deeplearning4j.nn.weights.WeightInit
-import org.deeplearning4j.optimize.listeners.ScoreIterationListener
-import org.nd4j.linalg.activations.Activation
-import org.nd4j.linalg.factory.Nd4j
-import org.nd4j.linalg.learning.config.Nesterovs
-import org.nd4j.linalg.lossfunctions.LossFunctions.LossFunction
 
 import scala.collection.mutable
 
@@ -23,14 +17,13 @@ import scala.collection.mutable
   * Description:
   * NONE
   */
+case class NBAlgorithmParams(pearsonThreasholds: Int, topNLikes: Int) extends Params
 
-case class NeurAlgorithmParams(pearsonThreasholds: Int, topNLikes: Int) extends Params
-
-class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData, NeurModel, Query, PredictedResult] {
+class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NBModel, Query, PredictedResult] {
 
   @transient lazy val logger: Logger = Logger[this.type]
 
-  override def train(sc: SparkContext, data: PreparedData): NeurModel = {
+  override def train(sc: SparkContext, data: PreparedData): NBModel = {
     require(!data.ratings.take(1).isEmpty, "评论数据不能为空！")
 
     //1.转换为HashMap,方便计算Pearson相似度,这是个昂贵的操作
@@ -47,67 +40,20 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
       (r._1, sum / size)
     })
 
-
-    //TODO 必须保存到Hadoop，防止OOM
-    val nRows = data.ratings.count()
-    //用来输入的部分
-    val features=Nd4j.zeros(nRows, 2)
-    //用来验证的部分
-    val labels=Nd4j.zeros(nRows,1)
-    //行索引
-    var rowIndex=0
-    data.ratings.foreach(r => {
-      val like = if (r.rating > userMean(r.user)) 1.0F else 0F
-      features.put(rowIndex,0,r.user.toFloat)
-      features.put(rowIndex,1,r.item.toFloat)
-      labels.put(rowIndex,0,like)
-      rowIndex+=1
+    //3.2 处理处理数据格式
+    val trainingData = data.ratings.map(r => {
+      val like = if (r.rating > userMean(r.user)) 1.0 else 0D
+      LabeledPoint(like, Vectors.dense(r.user.toInt, r.item.toInt))
     })
 
+    val model = NaiveBayes.train(trainingData)
 
 
-    // 随机数种子
-    val seed: Int = 123
-    //学习速率
-    val learningRate: Double = 0.006
-    //输入数据大小
-    val numInputs: Int = 2
-    //隐藏层的节点数量
-    val numHiddenNodes = 20
-    //输出数据
-    val numOutputs: Int = 1
 
-    logger.info("Build model....")
-    val conf = new NeuralNetConfiguration.Builder()
-      .seed(seed)
-      .weightInit(WeightInit.XAVIER)
-      // use stochastic gradient descent as an optimization algorithm
-      .updater(new Nesterovs(learningRate, 0.9))
-      .list()
-      .layer(new DenseLayer.Builder() //create the first, input layer with xavier initialization
-        .nIn(numInputs)
-        .nOut(numHiddenNodes)
-        .activation(Activation.RELU)
-        .build())
-      .layer(new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
-        .nIn(numHiddenNodes)
-        .nOut(numOutputs)
-        .activation(Activation.SOFTMAX)
-        .build())
-      .build()
-
-    val model: MultiLayerNetwork = new MultiLayerNetwork(conf)
-    model.init()
-    //只是为了打印日志
-    model.setListeners(new ScoreIterationListener(10))
-
-    logger.info("Train model....")
-    model.fit(features,labels)
-
-    new NeurModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userLikesAndNearstPearson._2.toSeq), sc.parallelize(userLikesAndNearstPearson._1.toSeq), model)
+    new NBModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userLikesAndNearstPearson._2.toSeq), sc.parallelize(userLikesAndNearstPearson._1.toSeq), model)
   }
 
-  override def predict(model: NeurModel, query: Query): PredictedResult = {
+  override def predict(model: NBModel, query: Query): PredictedResult = {
     val uMap = model.userMap.collectAsMap()
     if (!uMap.contains(query.user)) {
       //该用户没有过评分记录，返回空值
@@ -154,10 +100,10 @@ class NeurAlgorithm(val ap: NeurAlgorithmParams) extends PAlgorithm[PreparedData
     })
 
 
-    val neurModel = model.neurModel
+    val neurModel = model.navieBayesModel
     val filtedResult = pearsonResult.filter(re => {
-      val arr = List(query.user.toFloat, re._1.toFloat).toArray
-      neurModel.predict(Nd4j.create(arr))(0) == 1
+      val v = Vectors.dense(query.user.toInt, re._1.toInt)
+      neurModel.predict(v) == 1.0
     })
 
 

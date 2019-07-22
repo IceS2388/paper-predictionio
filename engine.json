@@ -9,7 +9,7 @@
   },
   "algorithms": [
     {
-      "name": "pn",
+      "name": "nb",
       "params": {
         "pearsonThreasholds": 5,
         "topNLikes": 150
