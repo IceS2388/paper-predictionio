@@ -13,7 +13,7 @@
       "params": {
         "pearsonThreashold": 5,
         "numNearestUsers": 20,
-        "numUserLikeMovies": 20
+        "numUserLikeMovies": 30
       }
     }
   ,{
@@ -30,7 +30,7 @@
       "params": {
         "pearsonThreashold": 5,
         "numNearestUsers": 20,
-        "numUserLikeMovies": 20
+        "numUserLikeMovies": 30
       }
     }
   , {

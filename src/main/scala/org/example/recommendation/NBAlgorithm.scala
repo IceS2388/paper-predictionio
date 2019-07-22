@@ -112,6 +112,9 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
 
     //归一化并加上权重
     val sum = preResult.map(r => r._2).sum
+
+    if(sum==0) return PredictedResult(Array.empty)
+
     val weight = 2.0
     val returnResult = pearsonResult.map(r => {
       ItemScore(r._1, r._2 / sum * weight)
