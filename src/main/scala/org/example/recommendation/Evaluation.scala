@@ -2,12 +2,8 @@ package org.example.recommendation
 
 import org.apache.predictionio.controller._
 
-
 /**
   * 在本推荐引擎中，使用了2个维度的指标，来评价数据。
-  **/
-
-/**
   * 用法:
   * $ pio eval org.example.recommendation.RecommendationEvaluation \
   * org.example.recommendation.EngineParamsList
@@ -97,7 +93,7 @@ object EngineParamsList extends EngineParamsGenerator {
   // a different algorithm params value.
   engineParamsList = Seq(
     baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10, 20, 0.01, Some(3L))))),
-    baseEP.copy(algorithmParamsList = Seq(("pus", PRTAlgorithmParams(10, 50)))),
+    baseEP.copy(algorithmParamsList = Seq(("pus", PRTAlgorithmParams(5, 20,20)))),
     baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300))))
   )
 }

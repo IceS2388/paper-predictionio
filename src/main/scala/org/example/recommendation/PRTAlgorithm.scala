@@ -14,12 +14,12 @@ import scala.collection.mutable
 /**
   * PRT的全称：PearsonRandomTrees
   *
-  * @param pearsonThreasholds
+  * @param pearsonThreashold
   * 计算Pearson系数时，最低用户之间共同拥有的元素个数。若相同元素个数的阀值，低于该阀值，相似度为0.
-  * @param topNLikes
+  * @param numNearestUsers
   * Pearson相似度最大的前N个用户
   **/
-case class PRTAlgorithmParams(pearsonThreasholds: Int, topNLikes: Int) extends Params
+case class PRTAlgorithmParams(pearsonThreashold: Int, numNearestUsers: Int,numUserLikeMovies:Int) extends Params
 
 
 /** 功能：
@@ -42,8 +42,9 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     //1.转换为HashMap,方便计算Pearson相似度,这是个昂贵的操作
     val userRatings: Map[String, Iterable[Rating]] = data.ratings.groupBy(r => r.user).collectAsMap().toMap
 
-    //2.计算用户与用户之间Pearson系数，并返回用户观看过后喜欢的列表和pearson系数最大的前TopN个用户的列表
-    val userLikesAndNearstPearson = new Pearson(ap.pearsonThreasholds, ap.topNLikes).getPearsonNearstUsers(userRatings)
+    //2.计算用户与用户之间Pearson系数，并返回
+    // 用户观看过后喜欢的列表(列表长度需要限制一下) 和 pearson系数最大的前TopN个用户的列表
+    val userLikesAndNearstPearson = new Pearson(ap.pearsonThreashold, ap.numNearestUsers,ap.numUserLikeMovies).getPearsonNearstUsers(userRatings)
 
     //3.训练RandomForestModel
     //3.1 计算用户的平均分
@@ -74,7 +75,10 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     val model = RandomForest.trainClassifier(trainingData, numClass, categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins)
 
-    new PRTModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userLikesAndNearstPearson._2.toSeq), sc.parallelize(userLikesAndNearstPearson._1.toSeq), model)
+    new PRTModel(sc.parallelize(userRatings.toSeq),
+      sc.parallelize(userLikesAndNearstPearson._2.toSeq), //最近的N个用户列表
+      sc.parallelize(userLikesAndNearstPearson._1.toSeq), //用户的喜欢列表
+      model)
 
   }
 

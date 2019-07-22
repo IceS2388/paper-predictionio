@@ -11,8 +11,9 @@
     {
       "name": "nb",
       "params": {
-        "pearsonThreasholds": 5,
-        "topNLikes": 150
+        "pearsonThreashold": 5,
+        "numNearestUsers": 20,
+        "numUserLikeMovies": 20
       }
     }
   ,{
@@ -27,8 +28,9 @@
   ,{
       "name": "prt",
       "params": {
-        "pearsonThreasholds": 5,
-        "topNLikes": 150
+        "pearsonThreashold": 5,
+        "numNearestUsers": 20,
+        "numUserLikeMovies": 20
       }
     }
   , {

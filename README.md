@@ -40,6 +40,10 @@ $ pio-docker train  -- --driver-memory 4g --executor-memory 5g --verbose
 ```shell
 $ pio-docker deploy
 ```
+**综合语句：**
+```shell
+$ sbt clean package && pio-docker train  -- --driver-memory 4g --executor-memory 5g --verbose && pio-docker deploy
+```
 **评估模板**
 ```shell
 $ pio-docker eval org.example.recommendation.RecommendationEvaluation org.example.recommendation.EngineParamsList -- --driver-memory 3g --executor-memory 5g --verbose

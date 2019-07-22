@@ -8,7 +8,7 @@ import scala.collection.mutable
   * @Description:
   * 主要用来处理生成Pearson系数和Pearson相关的对象。
   */
-class Pearson(val pearsonThreasholds: Int, val topNLikes: Int) {
+class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLikeMovies:Int) {
 
 
   def getPearsonNearstUsers(userRatings: Map[String, Iterable[Rating]]): (Map[String, List[Rating]],mutable.Map[String, List[(String, Double)]]) = {
@@ -25,7 +25,7 @@ class Pearson(val pearsonThreasholds: Int, val topNLikes: Int) {
         val ps = getPearson(u1, u2, userRatings)
         if (ps > 0) {
           //有用的相似度
-          if (maxPearson.size < topNLikes) {
+          if (maxPearson.size < numNearestUsers) {
             maxPearson.put(u2, ps)
           } else {
             val min_p = maxPearson.map(r => (r._1, r._2)).minBy(r => r._2)
@@ -49,12 +49,12 @@ class Pearson(val pearsonThreasholds: Int, val topNLikes: Int) {
       val count = r._2.size
 
       //用户浏览的小于numNearst，全部返回
-      val userLikes = if (count < topNLikes) {
+      val userLikes = if (count < numUserLikeMovies) {
         //排序后，直接返回
         r._2.toList.sortBy(_.rating).reverse
       } else {
         val mean = sum / count
-        r._2.filter(t => t.rating > mean).toList.sortBy(_.rating).reverse.take(topNLikes)
+        r._2.filter(t => t.rating > mean).toList.sortBy(_.rating).reverse.take(numUserLikeMovies)
       }
 
       (r._1, userLikes)
@@ -83,7 +83,7 @@ class Pearson(val pearsonThreasholds: Int, val topNLikes: Int) {
 
     //1.求u1与u2共同的物品ID
     val comItemSet = user1Data.map(r => r.item).toSet.intersect(user2Data.map(r => r.item).toSet)
-    if (comItemSet.size < pearsonThreasholds) {
+    if (comItemSet.size < pearsonThreashold) {
       //小于共同物品的阀值，直接退出
       return 0D
     }

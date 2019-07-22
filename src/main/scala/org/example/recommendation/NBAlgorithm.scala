@@ -7,9 +7,7 @@ import org.apache.spark.mllib.classification.NaiveBayes
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 
-
 import scala.collection.mutable
-
 
 /**
   * Author:IceS
@@ -17,7 +15,7 @@ import scala.collection.mutable
   * Description:
   * NONE
   */
-case class NBAlgorithmParams(pearsonThreasholds: Int, topNLikes: Int) extends Params
+case class NBAlgorithmParams(pearsonThreashold: Int, numNearestUsers: Int, numUserLikeMovies:Int) extends Params
 
 class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NBModel, Query, PredictedResult] {
 
@@ -30,9 +28,9 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
     val userRatings: Map[String, Iterable[Rating]] = data.ratings.groupBy(r => r.user).collectAsMap().toMap
 
     //2.计算用户与用户之间Pearson系数，并返回用户观看过后喜欢的列表和pearson系数最大的前TopN个用户的列表
-    val userLikesAndNearstPearson = new Pearson(ap.pearsonThreasholds, ap.topNLikes).getPearsonNearstUsers(userRatings)
+    val userLikesAndNearstPearson = new Pearson(ap.pearsonThreashold, ap.numNearestUsers,ap.numUserLikeMovies).getPearsonNearstUsers(userRatings)
 
-    //3.开始用单层神经网络
+    //3.朴素贝叶斯
     //3.1 计算用户的平均分
     val userMean: Map[String, Double] = userRatings.map(r => {
       val sum = r._2.toSeq.map(r2 => r2.rating).sum
@@ -48,9 +46,11 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
 
     val model = NaiveBayes.train(trainingData)
 
-
-
-    new NBModel(sc.parallelize(userRatings.toSeq), sc.parallelize(userLikesAndNearstPearson._2.toSeq), sc.parallelize(userLikesAndNearstPearson._1.toSeq), model)
+    new NBModel(
+      sc.parallelize(userRatings.toSeq),
+      sc.parallelize(userLikesAndNearstPearson._2.toSeq),//用户Pearson系数最近的N个用户
+      sc.parallelize(userLikesAndNearstPearson._1.toSeq),//用户喜欢的N部电影
+      model)
   }
 
   override def predict(model: NBModel, query: Query): PredictedResult = {
