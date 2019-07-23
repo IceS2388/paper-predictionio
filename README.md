@@ -42,6 +42,9 @@ $ pio-docker deploy
 ```
 **综合语句：**
 ```shell
+$ cd predictionio/docker
+$ docker-compose -f docker-compose.yml -f pgsql/docker-compose.base.yml -f pgsql/docker-compose.meta.yml -f pgsql/docker-compose.event.yml -f pgsql/docker-compose.model.yml up &
+$ cd templates/paper-predictionio
 $ sbt clean package && pio-docker train  -- --driver-memory 4g --executor-memory 5g --verbose && pio-docker deploy
 ```
 **评估模板**

@@ -53,6 +53,7 @@ object RecommendationEngine extends EngineFactory {
       classOf[DataSource],
       classOf[Preparator],
       Map(
+        "pearson" -> classOf[PearsonAlgorithm],
         "nb" -> classOf[NBAlgorithm],
         "als" -> classOf[ALSAlgorithm],
         "prt" -> classOf[PRTAlgorithm],

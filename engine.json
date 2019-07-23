@@ -9,6 +9,15 @@
   },
   "algorithms": [
     {
+      "name": "pearson",
+      "params": {
+        "pearsonThreashold": 5,
+        "numNearestUsers": 10,
+        "numUserLikeMovies": 50
+      }
+    }
+  ,
+    {
       "name": "nb",
       "params": {
         "pearsonThreashold": 5,
