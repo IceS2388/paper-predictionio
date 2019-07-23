@@ -6,7 +6,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.RandomForest
-
+import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable
 
@@ -152,5 +152,12 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     //排序，返回结果
     PredictedResult(returnResult.toArray)
+  }
+
+  override def batchPredict(m: PRTModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
+    qs.map(r=>{
+      //r._1
+      (r._1, predict(m,r._2))
+    })
   }
 }

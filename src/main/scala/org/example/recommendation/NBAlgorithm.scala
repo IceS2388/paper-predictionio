@@ -6,6 +6,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.mllib.classification.NaiveBayes
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable
 
@@ -122,5 +123,12 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
 
     //排序，返回结果
     PredictedResult(returnResult.toArray)
+  }
+
+  override def batchPredict(m: NBModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
+    qs.map(r=>{
+      //r._1
+      (r._1, predict(m,r._2))
+    })
   }
 }

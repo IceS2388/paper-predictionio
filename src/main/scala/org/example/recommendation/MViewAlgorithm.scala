@@ -87,4 +87,11 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
     PredictedResult(returnResult)
   }
+
+  override def batchPredict(m: MViewModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
+    qs.map(r=>{
+      //r._1
+      (r._1, predict(m,r._2))
+    })
+  }
 }
