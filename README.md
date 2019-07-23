@@ -46,7 +46,7 @@ $ sbt clean package && pio-docker train  -- --driver-memory 4g --executor-memory
 ```
 **评估模板**
 ```shell
-$ pio-docker eval org.example.recommendation.RecommendationEvaluation org.example.recommendation.EngineParamsList -- --driver-memory 3g --executor-memory 5g --verbose
+$ pio-docker eval org.example.recommendation.RecommendationEvaluation org.example.recommendation.EngineParamsList -- --driver-memory 4g --executor-memory 5g --verbose
 ```
 **运行结果：**报错`OOM`需要阅读Spark相关文档后继续。或者删除临时文件夹中prediction相关的文件。
 
