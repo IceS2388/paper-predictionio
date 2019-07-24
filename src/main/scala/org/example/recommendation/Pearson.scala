@@ -1,5 +1,7 @@
 package org.example.recommendation
 
+import grizzled.slf4j.Logger
+
 import scala.collection.mutable
 
 /**
@@ -9,7 +11,7 @@ import scala.collection.mutable
   * 主要用来处理生成Pearson系数和Pearson相关的对象。
   */
 class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLikeMovies:Int) {
-
+  @transient lazy val logger: Logger = Logger[this.type]
 
   def getPearsonNearstUsers(userRatings: Map[String, Iterable[Rating]]): (Map[String, List[Rating]],mutable.Map[String, List[(String, Double)]]) = {
     //1.获取用户的ID
@@ -38,6 +40,7 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
         }
       }
 
+      logger.info(s"user:$u1 nearest pearson users count:${maxPearson.count(_=>true)}")
       userNearestPearson.put(u1, maxPearson.toList.sortBy(_._2).reverse)
     }
 
@@ -57,8 +60,12 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
         r._2.filter(t => t.rating > mean).toList.sortBy(_.rating).reverse.take(numUserLikeMovies)
       }
 
+      logger.info(s"user:${r._1} likes Movies Count ${userLikes.count(_=>true)}")
+
       (r._1, userLikes)
     })
+
+
 
     (userLikesBeyondMean,userNearestPearson)
   }
