@@ -11,7 +11,7 @@ import org.apache.spark.rdd.RDD
   * Description:
   * 基础版的pearson相似度
   */
-case class PearsonAlgorithmParams(pearsonThreashold: Int, numNearestUsers: Int, numUserLikeMovies: Int) extends Params
+case class PearsonAlgorithmParams(pearsonThreashold: Int=10, numNearestUsers: Int=60, numUserLikeMovies: Int=100) extends Params
 
 class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[PreparedData, PearsonModel, Query, PredictedResult] {
 
@@ -80,7 +80,8 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
     val sum = result.map(r => r._2).sum
     if (sum == 0) return PredictedResult(Array.empty)
 
-    val weight = 2.0
+    logger.info(s"生成的Pearson相似度的长度为：${result.count()}")
+    val weight = 1.0
     val returnResult = result.map(r => {
       ItemScore(r._1, r._2 / sum * weight)
     }).sortBy(r => r.score, false).take(query.num)

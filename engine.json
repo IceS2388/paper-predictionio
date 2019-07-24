@@ -11,18 +11,18 @@
     {
       "name": "pearson",
       "params": {
-        "pearsonThreashold": 5,
-        "numNearestUsers": 10,
-        "numUserLikeMovies": 50
+        "pearsonThreashold": 10,
+        "numNearestUsers": 60,
+        "numUserLikeMovies": 100
       }
     }
   ,
     {
       "name": "nb",
       "params": {
-        "pearsonThreashold": 5,
-        "numNearestUsers": 10,
-        "numUserLikeMovies": 50
+        "pearsonThreashold": 10,
+        "numNearestUsers": 60,
+        "numUserLikeMovies": 100
       }
     }
   ,{
@@ -37,9 +37,15 @@
   ,{
       "name": "prt",
       "params": {
-        "pearsonThreashold": 5,
-        "numNearestUsers": 10,
-        "numUserLikeMovies": 50
+        "pearsonThreashold": 10,
+        "numNearestUsers": 60,
+        "numUserLikeMovies": 100,
+        "numTrees": 5,
+        "featureSubsetStrategy" : "auto",
+        "impurity": "gini",
+        "maxDepth": 5,
+        "maxBins": 100
+
       }
     }
   , {

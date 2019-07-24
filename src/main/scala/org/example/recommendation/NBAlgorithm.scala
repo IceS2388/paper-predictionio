@@ -16,7 +16,7 @@ import scala.collection.mutable
   * Description:
   * NONE
   */
-case class NBAlgorithmParams(pearsonThreashold: Int, numNearestUsers: Int, numUserLikeMovies:Int) extends Params
+case class NBAlgorithmParams(pearsonThreashold: Int=10, numNearestUsers: Int=60, numUserLikeMovies:Int=100) extends Params
 
 class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NBModel, Query, PredictedResult] {
 
