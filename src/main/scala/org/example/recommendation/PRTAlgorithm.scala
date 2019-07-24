@@ -135,6 +135,7 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
       randomModel.predict(v) == 1.0
     })
 
+    //TODO 调试日志
     logger.info(s"筛选过后复合条件的物品数量为：${filtedResult.count()}")
     //排序取TopN
     val preResult = filtedResult.sortBy(_._2, false).take(query.num)

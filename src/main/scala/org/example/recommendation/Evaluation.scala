@@ -1,5 +1,6 @@
 package org.example.recommendation
 
+import grizzled.slf4j.Logger
 import org.apache.predictionio.controller._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -34,7 +35,7 @@ import org.apache.spark.rdd.RDD
 
 case class Recommendation()
     extends Metric[EmptyEvaluationInfo, Query, PredictedResult, ActualResult, VerifiedResult] {
-
+  @transient lazy val logger: Logger = Logger[this.type]
   override
   def calculate(sc: SparkContext, evalDataSet: Seq[(EmptyEvaluationInfo, RDD[(Query, PredictedResult, ActualResult)])]): VerifiedResult = {
     /**
@@ -50,6 +51,7 @@ case class Recommendation()
       *
       * F1 = 2TP / (2TP + FP + FN)
       **/
+    logger.info(s"evalDataSet的大小：${evalDataSet.count(_=>true)}")
     val finalV = evalDataSet.map(r => {
       //r._2 RDD[(Query, PredictedResult, ActualResult)])] 这是每条参数的对应每次的预测结果
 
@@ -74,6 +76,9 @@ case class Recommendation()
           val recall = hit * 1.0 / actuallyItems.size
           //F1 = 2TP / (2TP + FP + FN)
           val f1 = 2 * hit / (predictedItems.size + actuallyItems.size)
+
+          //TODO 调试日志
+          logger.info(s"user:${p._1.user},num:${p._1.num},precision：$precision,recall:$recall,f1:$f1")
           //返回每一个用户ID的验证结果
           VerifiedResult(precision, recall, f1)
         }
@@ -122,20 +127,20 @@ object EngineParamsList extends EngineParamsGenerator {
 
   //然后，精确指定每个引擎的参数列表，同一个引擎可以有多个不同的测试参数。
   engineParamsList = Seq(
-    baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10, 20, 0.01, Some(3L))))),
-    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 20)))),
-    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 20)))),
-    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 40)))),
-    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 40)))),
+    //baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10, 20, 0.01, Some(3L))))),
+    //baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 20)))),
+   // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 20)))),
+   // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 40)))),
+    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 60, 100)))),
 
-    baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),
-    baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(200)))),
-    baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300)))),
+   // baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),
+    //baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(200)))),
+    //baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300)))),
 
-    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20, 20)))),
-    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 20, 20)))),
-    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20, 40)))),
-    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 20, 40))))
+    //baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20, 20)))),
+    //baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 20, 20)))),
+    //baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20, 40)))),
+    baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 60, 100))))
   )
 }
 
