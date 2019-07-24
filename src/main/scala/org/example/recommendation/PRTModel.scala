@@ -41,8 +41,7 @@ object PRTModel extends PersistentModelLoader[PRTAlgorithmParams, PRTModel] {
       userMap = sc.get.objectFile[(String, Iterable[Rating])](s"/tmp/PR/$id/userMap"),
       userNearestPearson = sc.get.objectFile[(String, List[(String, Double)])](s"/tmp/PR/$id/userNearestPearson"),
       userLikesBeyondMean = sc.get.objectFile[(String, List[Rating])](s"/tmp/PR/$id/userLikesBeyondMean"),
-      RandomForestModel.load(sc.get,s"/tmp/PR/$id/randomForestModel"),
-
+      RandomForestModel.load(sc.get,s"/tmp/PR/$id/randomForestModel")
     )
   }
 }
