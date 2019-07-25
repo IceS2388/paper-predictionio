@@ -132,6 +132,7 @@ object EngineParamsList extends EngineParamsGenerator {
    // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 20)))),
    // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 40)))),
     baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 60, 100)))),
+    baseEP.copy(algorithmParamsList = Seq(("pearson", PearsonAlgorithmParams(10, 60, 100)))),
 
    // baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),
     //baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(200)))),

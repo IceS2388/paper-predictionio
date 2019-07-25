@@ -94,6 +94,7 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
   override def batchPredict(m: PearsonModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
     qs.map(r => {
       //r._1
+      logger.info(s"Index:${r._1}")
       (r._1, predict(m, r._2))
     })
   }

@@ -53,15 +53,25 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
         }
       }
       rating
-    }.cache()
+    }
 
-    ratingsRDD
+
+
+    //过滤观看条数少于20条的用户
+    val lowFreqencyUser = ratingsRDD.mapPartitions(p=>{
+      p.map(r=>(r.user,1))
+    }).reduceByKey(_+_).filter(_._2<=20).collectAsMap()
+
+    val result: RDD[Rating] = ratingsRDD.filter(r=>(!lowFreqencyUser.contains(r.user)))
+
+    result
   }
 
   override
   def readTraining(sc: SparkContext): TrainingData = {
     /**
       * 从Event Store(Event Server的数据仓库中)读取，选择数据，然后返回TrainningData
+      * 这里是完整的数据
       * */
     new TrainingData(getRatings(sc))
   }

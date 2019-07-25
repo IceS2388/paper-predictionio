@@ -24,6 +24,7 @@ class Serving
     logger.info(s"推荐结果集的个数：${predictedResults.size}")
 
     val result2 =predictedResults.flatMap(singleResult=>{
+      val r: PredictedResult =singleResult
       singleResult.itemScores.map(r=>{
         (r.item,r.score)
       })
@@ -31,24 +32,11 @@ class Serving
       r2._2.reduce((a1,a2)=>{(a1._1,a1._2+a2._2)})
     })
 
-    //存储最终结果的HashMap
-   /* val result=new mutable.HashMap[String,Double]()
 
-    predictedResults.foreach(pr=>{
-      pr.itemScores.foreach(is=>{
-        if(!result.contains(is.item)){
-          result.put(is.item,is.score)
-        }else{
-          val oldScore=result.get(is.item).get
-          result.update(is.item,oldScore+is.score)
-        }
-      })
-    })*/
    val rr2 =result2.toArray.sortBy(_._2).reverse
      .take(query.num)
      .map(r=>new ItemScore(r._1,r._2))
-    /* val rr=result2.map(r=>new ItemScore(r._1,r._2)).toArray
-       .sortBy(_.score).reverse.take(query.num)*/
+
 
     PredictedResult(rr2)
   }
