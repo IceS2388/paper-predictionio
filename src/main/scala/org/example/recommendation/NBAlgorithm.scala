@@ -127,14 +127,15 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
   }
 
   override def batchPredict(m: NBModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
-    val spark = qs.sparkContext
+    val queryArray= qs.collect()
+
     val result = new ArrayBuffer[(Long, PredictedResult)]()
 
-    qs.foreach(r => {
-      //r._1
+    for(r <-queryArray){
       logger.info(s"Index:${r._1}")
       result.append((r._1, predict(m, r._2)))
-    })
-    spark.parallelize(result)
+    }
+    logger.info(s"result的大小:${result.length}")
+    qs.sparkContext.parallelize(result)
   }
 }
