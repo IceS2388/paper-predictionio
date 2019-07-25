@@ -82,7 +82,7 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
     val sum = result.map(r => r._2).sum
     if (sum == 0) return PredictedResult(Array.empty)
 
-    logger.info(s"生成的Pearson相似度的长度为：${result.count()}")
+    //logger.info(s"生成的Pearson相似度的长度为：${result.count()}")
     val weight = 1.0
     val returnResult = result.map(r => {
       ItemScore(r._1, r._2 / sum * weight)

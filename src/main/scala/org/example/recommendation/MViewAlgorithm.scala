@@ -26,11 +26,6 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     //(电影ID，观影次数)
     var initalSize: RDD[(String, Int)] = itemGroup.map(r => (r._1, r._2.size))
 
-    //调试信息
-    /*initalSize.foreach(r=>{
-      logger.info(s"itemid:${r._1},count:${r._2}")
-    })*/
-
 
     //logger.info(s"电影的总数：${initalSize.count()}")
     while (initalSize.count() > 2 * ap.maxItems) {
@@ -58,18 +53,6 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
     //该用户已经看过的电影
     val itemMap = sawMovie.get(query.user)
-
-
-    //调试信息
-   /* logger.info(s"筛选前的大小：${model.mostView.count()}")
-    val myCount=model.mostView.filter(r => {
-      val re= itemMap.contains(r._1)
-      logger.info(s"${r._1}是否包含在用户的观看列表：${re}")
-      re
-    }).count()
-    logger.info(s"用户观看列表的大小：${itemMap.get.size}；包含在最喜欢看列表中的个数为：${myCount}")*/
-
-
 
     val result = model.mostView.filter(r => {
       !itemMap.contains(r._1)
