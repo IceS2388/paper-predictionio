@@ -5,13 +5,15 @@ import org.apache.predictionio.controller.{PAlgorithm, Params}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * Author:IceS
   * Date:2019-07-23 14:09:02
   * Description:
   * 基础版的pearson相似度
   */
-case class PearsonAlgorithmParams(pearsonThreashold: Int=10, numNearestUsers: Int=60, numUserLikeMovies: Int=100) extends Params
+case class PearsonAlgorithmParams(pearsonThreashold: Int = 10, numNearestUsers: Int = 60, numUserLikeMovies: Int = 100) extends Params
 
 class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[PreparedData, PearsonModel, Query, PredictedResult] {
 
@@ -92,10 +94,15 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
   }
 
   override def batchPredict(m: PearsonModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
-    qs.map(r => {
+
+    val spark = qs.sparkContext
+    val result = new ArrayBuffer[(Long, PredictedResult)]()
+
+    qs.foreach(r => {
       //r._1
       logger.info(s"Index:${r._1}")
-      (r._1, predict(m, r._2))
+      result.append((r._1, predict(m, r._2)))
     })
+    spark.parallelize(result)
   }
 }

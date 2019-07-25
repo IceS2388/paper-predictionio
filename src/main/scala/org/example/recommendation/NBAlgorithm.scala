@@ -9,6 +9,7 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Author:IceS
@@ -126,9 +127,14 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
   }
 
   override def batchPredict(m: NBModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
-    qs.map(r=>{
+    val spark = qs.sparkContext
+    val result = new ArrayBuffer[(Long, PredictedResult)]()
+
+    qs.foreach(r => {
       //r._1
-      (r._1, predict(m,r._2))
+      logger.info(s"Index:${r._1}")
+      result.append((r._1, predict(m, r._2)))
     })
+    spark.parallelize(result)
   }
 }
