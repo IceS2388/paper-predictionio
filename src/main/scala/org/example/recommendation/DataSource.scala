@@ -62,7 +62,7 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
       p.map(r=>(r.user,1))
     }).reduceByKey(_+_).filter(_._2<=20).collectAsMap()
 
-    val result: RDD[Rating] = ratingsRDD.filter(r=>(!lowFreqencyUser.contains(r.user)))
+    val result: RDD[Rating] = ratingsRDD.filter(r=>(!lowFreqencyUser.contains(r.user))).cache()
 
     result
   }

@@ -40,7 +40,7 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
         }
       }
 
-      logger.info(s"user:$u1 nearest pearson users count:${maxPearson.count(_=>true)}")
+      //logger.info(s"user:$u1 nearest pearson users count:${maxPearson.count(_=>true)}")
       userNearestPearson.put(u1, maxPearson.toList.sortBy(_._2).reverse)
     }
 
@@ -60,7 +60,7 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
         r._2.filter(t => t.rating > mean).toList.sortBy(_.rating).reverse.take(numUserLikeMovies)
       }
 
-      logger.info(s"user:${r._1} likes Movies Count ${userLikes.count(_=>true)}")
+      //logger.info(s"user:${r._1} likes Movies Count ${userLikes.count(_=>true)}")
 
       (r._1, userLikes)
     })
