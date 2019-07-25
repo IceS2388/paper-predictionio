@@ -11,7 +11,7 @@ import org.apache.spark.rdd.RDD
   * */
 class MViewModel(
   val userMap: RDD[(String, Iterable[String])],
-  val mostView:RDD[(String,Int)]) extends PersistentModel[MViewAlgorithmParams] {
+  val mostView:RDD[(String,Int)]) extends PersistentModel[MViewAlgorithmParams] with Serializable {
   override def save(id: String, params: MViewAlgorithmParams, sc: SparkContext): Boolean = {
     userMap.saveAsObjectFile(s"/tmp/mv/${id}/userMap")
     mostView.saveAsObjectFile(s"/tmp/mv/${id}/mostView")

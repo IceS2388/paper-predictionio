@@ -18,7 +18,7 @@ class PRTModel(
                 val userNearestPearson: RDD[(String, List[(String, Double)])],
                 val userLikesBeyondMean: RDD[(String, List[Rating])],
                 val randomForestModel: RandomForestModel
-              ) extends PersistentModel[PRTAlgorithmParams] {
+              ) extends PersistentModel[PRTAlgorithmParams] with Serializable {
   override def save(id: String, params: PRTAlgorithmParams, sc: SparkContext): Boolean = {
 
     userMap.saveAsObjectFile(s"/tmp/PR/$id/userMap")

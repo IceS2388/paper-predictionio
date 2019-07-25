@@ -14,7 +14,7 @@ class PearsonModel(
                     val userMap: RDD[(String, Iterable[Rating])],
                     val userNearestPearson: RDD[(String, List[(String, Double)])],
                     val userLikesBeyondMean: RDD[(String, List[Rating])]
-                  ) extends PersistentModel[PearsonAlgorithmParams]  {
+                  ) extends PersistentModel[PearsonAlgorithmParams] with Serializable  {
   override def save(id: String, params: PearsonAlgorithmParams, sc: SparkContext): Boolean = {
     userMap.saveAsObjectFile(s"/tmp/P/$id/userMap")
     userNearestPearson.saveAsObjectFile(s"/tmp/P/$id/userNearestPearson")

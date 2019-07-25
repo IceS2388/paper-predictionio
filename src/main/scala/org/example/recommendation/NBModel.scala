@@ -17,7 +17,7 @@ class NBModel(
                val userNearestPearson: RDD[(String, List[(String, Double)])],
                val userLikesBeyondMean: RDD[(String, List[Rating])],
                val navieBayesModel: NaiveBayesModel
-             ) extends PersistentModel[NBAlgorithmParams] {
+             ) extends PersistentModel[NBAlgorithmParams] with Serializable {
   override def save(id: String, params: NBAlgorithmParams, sc: SparkContext): Boolean = {
     userMap.saveAsObjectFile(s"/tmp/NB/$id/userMap")
     userNearestPearson.saveAsObjectFile(s"/tmp/NB/$id/userNearestPearson")
