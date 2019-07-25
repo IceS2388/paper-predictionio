@@ -9,14 +9,22 @@ import org.apache.predictionio.controller.{Engine, EngineFactory}
 case class Query(
   user: String,
   num: Int
-)
+){
+  override def toString: String = {
+    s"{user:$user,num:$num}"
+  }
+}
 
 /**
   * ItemScore的数组，最后返回给用户的结果
   **/
 case class PredictedResult(
   itemScores: Array[ItemScore]
-)
+){
+  override def toString: String = {
+    s"PredictedResult{itemScores:Array[ItemScore]},itemScores.length=${itemScores.length}"
+  }
+}
 
 
 /**

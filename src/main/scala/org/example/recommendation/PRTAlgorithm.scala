@@ -138,7 +138,7 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     })
 
 
-    //logger.info(s"筛选过后复合条件的物品数量为：${filtedResult.count()}")
+    //logger.info(s"筛选过后符合条件的物品数量为：${filtedResult.count()}")
     //排序取TopN
     val preResult = filtedResult.sortBy(_._2, false).take(query.num)
 
@@ -162,8 +162,10 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     val result = new ArrayBuffer[(Long, PredictedResult)]()
 
     for(r <-queryArray){
-      logger.info(s"Index:${r._1}")
-      result.append((r._1, predict(m, r._2)))
+      logger.info(s"Index:${r._1},"+r._2)
+      val pred=predict(m, r._2)
+      result.append((r._1, pred))
+      logger.info(pred)
     }
     logger.info(s"result的大小:${result.length}")
     qs.sparkContext.parallelize(result)

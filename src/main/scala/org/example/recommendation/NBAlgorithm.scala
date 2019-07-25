@@ -132,8 +132,10 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
     val result = new ArrayBuffer[(Long, PredictedResult)]()
 
     for(r <-queryArray){
-      logger.info(s"Index:${r._1}")
-      result.append((r._1, predict(m, r._2)))
+      logger.info(s"Index:${r._1},"+r._2)
+      val pred=predict(m, r._2)
+      result.append((r._1, pred))
+      logger.info(pred)
     }
     logger.info(s"result的大小:${result.length}")
     qs.sparkContext.parallelize(result)

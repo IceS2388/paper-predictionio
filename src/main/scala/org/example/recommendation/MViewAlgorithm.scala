@@ -41,7 +41,7 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
     val mostView: Array[(String, Int)] = initalSize.sortBy(_._2).collect().reverse.take(ap.maxItems)
 
     //用户看过的
-    val userOwned =data.ratings.groupBy(_.user).map(r => {
+    val userOwned = data.ratings.groupBy(_.user).map(r => {
       val items = r._2.map(r2 => r2.item)
       (r._1, items)
     })
@@ -63,24 +63,26 @@ class MViewAlgorithm(val ap: MViewAlgorithmParams) extends PAlgorithm[PreparedDa
 
 
     //实现归一化
-    val sum= result.map(r=>r._2).sum
-    if(sum==0) return PredictedResult(Array.empty)
-    val weight=1.0
-    val returnResult=result.map(r=>{
-       ItemScore(r._1,r._2/sum*weight)
+    val sum = result.map(r => r._2).sum
+    if (sum == 0) return PredictedResult(Array.empty)
+    val weight = 1.0
+    val returnResult = result.map(r => {
+      ItemScore(r._1, r._2 / sum * weight)
     })
 
     PredictedResult(returnResult)
   }
 
   override def batchPredict(m: MViewModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
-    val queryArray= qs.collect()
+    val queryArray = qs.collect()
 
     val result = new ArrayBuffer[(Long, PredictedResult)]()
 
-    for(r <-queryArray){
-      logger.info(s"Index:${r._1}")
-      result.append((r._1, predict(m, r._2)))
+    for (r <- queryArray) {
+      logger.info(s"Index:${r._1}," + r._2)
+      val pred = predict(m, r._2)
+      result.append((r._1, pred))
+      logger.info(pred)
     }
     logger.info(s"result的大小:${result.length}")
     qs.sparkContext.parallelize(result)
