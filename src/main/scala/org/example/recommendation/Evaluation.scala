@@ -13,18 +13,18 @@ import org.apache.spark.rdd.RDD
   * 说明：
   * 本类只求推荐引擎对应的时长、精确度和召回率
   **/
- case class VerifiedResult( precision: Double, recall: Double, f1: Double) extends Ordered[VerifiedResult] {
+case class VerifiedResult(precision: Double, recall: Double, f1: Double) extends Ordered[VerifiedResult] {
 
   override def compare(y: VerifiedResult): Int = {
 
     if (this.precision != y.precision) {
-       Ordering.Double.compare(this.precision, y.precision)
+      Ordering.Double.compare(this.precision, y.precision)
     } else {
       if (this.recall != y.recall) {
-         Ordering.Double.compare(this.recall, y.recall)
+        Ordering.Double.compare(this.recall, y.recall)
       } else {
 
-         Ordering.Double.compare(this.f1, y.f1)
+        Ordering.Double.compare(this.f1, y.f1)
 
       }
     }
@@ -32,10 +32,10 @@ import org.apache.spark.rdd.RDD
 }
 
 
-
 case class Recommendation()
-    extends Metric[EmptyEvaluationInfo, Query, PredictedResult, ActualResult, VerifiedResult] {
+  extends Metric[EmptyEvaluationInfo, Query, PredictedResult, ActualResult, VerifiedResult] {
   @transient lazy val logger: Logger = Logger[this.type]
+
   override
   def calculate(sc: SparkContext, evalDataSet: Seq[(EmptyEvaluationInfo, RDD[(Query, PredictedResult, ActualResult)])]): VerifiedResult = {
     /**
@@ -51,11 +51,16 @@ case class Recommendation()
       *
       * F1 = 2TP / (2TP + FP + FN)
       **/
-    logger.info(s"evalDataSet的大小：${evalDataSet.count(_=>true)}")
+    logger.info(s"evalDataSet的大小：${evalDataSet.count(_ => true)}")
     val finalV = evalDataSet.map(r => {
       //r._2 RDD[(Query, PredictedResult, ActualResult)])] 这是每条参数的对应每次的预测结果
 
+      logger.info(s"(Query, PredictedResult, ActualResult)的数量：${r._2.count()}")
       val each = r._2.map(p => {
+
+        logger.info(s"Query：${p._1.user},条数:${p._1.num}")
+        logger.info(s"PredictedResult的itemScores条数：${p._2.itemScores.length}")
+        logger.info(s"ActualResult的itemScores条数：${p._3.ratings.length}")
         //这里是每一条结果
         //p._1.user
         //p._1.num
@@ -85,19 +90,28 @@ case class Recommendation()
       })
 
       val count = each.count()
-      val t: VerifiedResult = each.reduce((v1, v2) => {
-        VerifiedResult(v1.precision + v2.precision, v1.recall + v2.recall, v1.f1 + v2.f1)
-      })
+      if (count == 0) {
+        VerifiedResult(0, 0, 0)
+      } else {
+        //报错empty collection
+        val t: VerifiedResult = each.reduce((v1, v2) => {
+          VerifiedResult(v1.precision + v2.precision, v1.recall + v2.recall, v1.f1 + v2.f1)
+        })
 
-      //返回这个参数下：所有验证结果的平均值
-      VerifiedResult(t.precision / count, t.recall / count, t.f1 / count)
+        //返回这个参数下：所有验证结果的平均值
+        VerifiedResult(t.precision / count, t.recall / count, t.f1 / count)
+      }
     })
 
     val fCount = finalV.size
-    val tTop = finalV.reduce((v1, v2) => {
-      VerifiedResult(v1.precision + v2.precision, v1.recall + v2.recall, v1.f1 + v2.f1)
-    })
-    VerifiedResult(tTop.precision / fCount, tTop.recall / fCount, tTop.f1 / fCount)
+    if (fCount == 0) {
+      VerifiedResult(0, 0, 0)
+    } else {
+      val tTop = finalV.reduce((v1, v2) => {
+        VerifiedResult(v1.precision + v2.precision, v1.recall + v2.recall, v1.f1 + v2.f1)
+      })
+      VerifiedResult(tTop.precision / fCount, tTop.recall / fCount, tTop.f1 / fCount)
+    }
   }
 
 }
@@ -129,12 +143,12 @@ object EngineParamsList extends EngineParamsGenerator {
   engineParamsList = Seq(
     //baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10, 20, 0.01, Some(3L))))),
     //baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 20)))),
-   // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 20)))),
-   // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 40)))),
-    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 60, 100)))),
+    // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 20)))),
+    // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 40)))),
     baseEP.copy(algorithmParamsList = Seq(("pearson", PearsonAlgorithmParams(10, 60, 100)))),
+    baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 60, 100)))),
 
-   // baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),
+    // baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),
     //baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(200)))),
     //baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300)))),
 
