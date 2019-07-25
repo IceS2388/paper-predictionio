@@ -53,18 +53,20 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
         }
       }
       rating
-    }
+    }.cache()
+
+    ratingsRDD
 
 
 
-    //过滤观看条数少于20条的用户
+   /* //过滤观看条数少于20条的用户
     val lowFreqencyUser = ratingsRDD.mapPartitions(p=>{
       p.map(r=>(r.user,1))
     }).reduceByKey(_+_).filter(_._2<=20).collectAsMap()
 
     val result: RDD[Rating] = ratingsRDD.filter(r=>(!lowFreqencyUser.contains(r.user))).cache()
 
-    result
+    result*/
   }
 
   override
