@@ -5,15 +5,15 @@ import grizzled.slf4j.Logger
 import scala.collection.mutable
 
 /**
-  * @Author:Administrator
-  * @Date:2019-07-19 18:44:04
-  * @Description:
+  * Author:Administrator
+  * Date:2019-07-19 18:44:04
+  * Description:
   * 主要用来处理生成Pearson系数和Pearson相关的对象。
   */
-class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLikeMovies:Int) {
+class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val numUserLikeMovies:Int) {
   @transient lazy val logger: Logger = Logger[this.type]
 
-  def getPearsonNearstUsers(userRatings: Map[String, Iterable[Rating]]): (Map[String, List[Rating]],mutable.Map[String, List[(String, Double)]]) = {
+  def getNearstUsers(userRatings: Map[String, Iterable[Rating]]): (Map[String, List[Rating]],mutable.Map[String, List[(String, Double)]]) = {
     //1.获取用户的ID
     val users = userRatings.keySet.toList.sortBy(_.toInt)
 
@@ -24,7 +24,7 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
       val maxPearson: mutable.Map[String, Double] = mutable.HashMap.empty
       for {u2 <- users
            if u1 < u2} {
-        val ps = getPearson(u1, u2, userRatings)
+        val ps = getSimilarity(u1, u2, userRatings)
         if (ps > 0) {
           //有用的相似度
           if (maxPearson.size < numNearestUsers) {
@@ -74,8 +74,10 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
     * Pearson相似度计算公式:
     * r=sum((x-x_mean)*(y-y_mean))/(Math.pow(sum(x-x_mean),0.5)*Math.pow(sum(y-y_mean),0.5))
     * 要求，两者的共同因子必须达到阀值。默认为10
+    *
+    * 增加评分差距因子。2019年7月26日
     **/
-  private def getPearson(
+  private def getSimilarity(
                           userid1: String,
                           userid2: String,
                           userHashRatings: Map[String, Iterable[Rating]]): Double = {
@@ -85,8 +87,8 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
       return 0D
     }
 
-    val user1Data = userHashRatings(userid1)
-    val user2Data = userHashRatings(userid2)
+    val user1Data: Iterable[Rating] = userHashRatings(userid1)
+    val user2Data: Iterable[Rating] = userHashRatings(userid2)
 
     //1.求u1与u2共同的物品ID
     val comItemSet = user1Data.map(r => r.item).toSet.intersect(user2Data.map(r => r.item).toSet)
@@ -114,8 +116,17 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
     var xy = 0D
     var x_var = 0D
     var y_var = 0D
-    comItems.foreach(i => {
 
+    //偏差因素
+    var w=0.0
+
+
+    comItems.foreach(i => {
+      //                 u1_r     u2_r
+      //val t: (String, (Double, Double))
+      w+=Math.pow((i._2._1-i._2._2),2)
+
+      //计算Pearson系数
       val x_vt = i._2._1 - x_mean
       val y_vt = i._2._2 - y_mean
       xy += x_vt * y_vt
@@ -124,7 +135,13 @@ class Pearson(val pearsonThreashold: Int, val numNearestUsers: Int,val numUserLi
       y_var += y_vt * y_vt
     })
 
+    //计算偏差指数
+    w = Math.pow(Math.E,(Math.pow(w,0.5))*(-1)/count)
+
     //Pearson系数
-    xy / (Math.pow(x_var, 0.5) * Math.pow(y_var, 0.5))
+    val pearson=xy / (Math.pow(x_var, 0.5) * Math.pow(y_var, 0.5))
+
+    //改良过后的相似度计算方法
+    pearson*w
   }
 }

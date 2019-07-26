@@ -53,7 +53,7 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     //2.计算用户与用户之间Pearson系数，并返回
     // 用户观看过后喜欢的列表(列表长度需要限制一下) 和 pearson系数最大的前TopN个用户的列表
-    val userLikesAndNearstPearson = new Pearson(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getPearsonNearstUsers(userRatings)
+    val userLikesAndNearstPearson = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
 
     //3.训练RandomForestModel
     //3.1 计算用户的平均分

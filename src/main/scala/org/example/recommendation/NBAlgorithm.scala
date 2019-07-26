@@ -30,7 +30,7 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
     val userRatings: Map[String, Iterable[Rating]] = data.ratings.groupBy(r => r.user).collectAsMap().toMap
 
     //2.计算用户与用户之间Pearson系数，并返回用户观看过后喜欢的列表和pearson系数最大的前TopN个用户的列表
-    val userLikesAndNearstPearson = new Pearson(ap.pearsonThreashold, ap.numNearestUsers,ap.numUserLikeMovies).getPearsonNearstUsers(userRatings)
+    val userLikesAndNearstPearson = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers,ap.numUserLikeMovies).getNearstUsers(userRatings)
 
     //3.朴素贝叶斯
     //3.1 计算用户的平均分

@@ -86,7 +86,7 @@ case class Recommendation()
           //Recall = TP / (TP + FN)
           val recall = hit * 1.0 / actuallyItems.size
           //F1 = 2TP / (2TP + FP + FN)
-          val f1 = 2 * hit / (predictedItems.size + actuallyItems.size)
+          val f1 = 2.0 * hit / (predictedItems.size + actuallyItems.size)
 
           //TODO 注释
           logger.info(s"user:${p._1.user},num:${p._1.num},precision：$precision,recall:$recall,f1:$f1")
