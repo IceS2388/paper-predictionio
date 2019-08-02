@@ -23,7 +23,7 @@ case class PRTAlgorithmParams(
                                pearsonThreashold: Int = 10,
                                numNearestUsers: Int = 60,
                                numUserLikeMovies: Int = 100,
-                               numClass:Int=10,
+                               numClass: Int = 10,
                                numTrees: Int = 5,
                                featureSubsetStrategy: String = "auto",
                                impurity: String = "gini",
@@ -36,7 +36,7 @@ case class PRTAlgorithmParams(
   * 以用户与用户之间Pearson相似度为基础，通过随机森林进行过滤的综合算法。
   *
   * @param ap 该算法在engine.json中设置的参数
-  * */
+  **/
 class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, PRTModel, Query, PredictedResult] {
 
   @transient lazy val logger: Logger = Logger[this.type]
@@ -54,8 +54,7 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     //2.计算用户与用户之间Pearson系数，并返回
     // 用户观看过后喜欢的列表(列表长度需要限制一下) 和 pearson系数最大的前TopN个用户的列表
-    val (userLikes,nearstPearson) = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
-
+    val (userLikes, nearstPearson) = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
 
 
     //3.2 处理处理数据格式
@@ -120,17 +119,24 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
       //r._1 itemID
       // 3.3 过滤掉用户已经看过的电影
       !userSawMovie.contains(r._1)
-    }).reduceByKey((l,r)=>l.max(r)) //若这里采用累加的方式，会产生受欢迎物品的集中
+    }).reduceByKey(_ + _)
 
+    val c = result.count()
+    if (c == 0) return PredictedResult(Array.empty)
 
-    if (result.count() == 0) return PredictedResult(Array.empty)
-
+    //限制大小
+    val limitResult = if (c > query.num * 5) {
+      val mean = result.map(r => r._2).sum() / c
+      result.filter(r => r._2 > mean)
+    } else {
+      result
+    }
     //随机森林过滤
     val randomModel = model.randomForestModel
-    val filtedResult = result.filter(r => {
+    val filtedResult = limitResult.filter(r => {
       val v = Vectors.dense(query.user.toInt, r._1.toInt)
-      val rate= randomModel.predict(v)
-      rate>3.0
+      val rate = randomModel.predict(v)
+      rate > 3.0
     })
 
 
@@ -153,13 +159,13 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
   }
 
   override def batchPredict(m: PRTModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
-    val queryArray= qs.collect()
+    val queryArray = qs.collect()
 
     val result = new ArrayBuffer[(Long, PredictedResult)]()
 
-    for(r <-queryArray){
-      logger.info(s"Index:${r._1},"+r._2)
-      val pred=predict(m, r._2)
+    for (r <- queryArray) {
+      logger.info(s"Index:${r._1}," + r._2)
+      val pred = predict(m, r._2)
       result.append((r._1, pred))
       logger.info(pred)
     }

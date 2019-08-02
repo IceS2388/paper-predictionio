@@ -77,10 +77,12 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
       //r._1 itemID
       // 3.3 过滤掉用户已经看过的电影
       !userSawMovie.contains(r._1)
-    }).reduceByKey((l,r)=>l.max(r))
+    }).reduceByKey(_+_)
 
-    val sum = result.map(r => r._2).sum
+    val sum:Double = result.map(r => r._2).sum
     if (sum == 0) return PredictedResult(Array.empty)
+
+
 
     //logger.info(s"生成的Pearson相似度的长度为：${result.count()}")
     val weight = 1.0
