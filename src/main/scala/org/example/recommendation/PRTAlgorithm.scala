@@ -72,11 +72,7 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     //分类数目
     val numClass = 5
     //设定输入数据格式
-    val categoricalFeaturesInfo = Map[Int, Int](0->1,
-      1->2,
-      2->3,
-      3->4,
-      4->5)
+    val categoricalFeaturesInfo = Map[Int, Int]()
 
 
     val model = RandomForest.trainClassifier(trainingData, numClass, categoricalFeaturesInfo, ap.numTrees, ap.featureSubsetStrategy.toLowerCase(), ap.impurity.toLowerCase(), ap.maxDepth, ap.maxBins)
@@ -139,8 +135,9 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     val randomModel = model.randomForestModel
     val filtedResult = result.map(r => {
       val v = Vectors.dense(query.user.toInt, r._1.toInt)
-      val rate= randomModel.predict(v)/5.0
-      (r._1,r._2*rate)
+      val rate= randomModel.predict(v)
+      logger.info(s"物品：${r._1}的预测分类为：$rate")
+      (r._1,r._2*(rate/5.0))
     })
 
 
