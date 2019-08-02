@@ -130,9 +130,8 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     val filtedResult = result.map(r => {
       val v = Vectors.dense(query.user.toInt, r._1.toInt)
       val rate= randomModel.predict(v)
-      logger.info(s"物品：${r._1}的预测分类为：$rate")
-      (r._1,r._2*(rate/5.0))
-    })
+      (r._1,r._2*(rate/5.0),rate>3.0)
+    }).filter(r=>r._3).map(r=>(r._1,r._2))
 
 
     //logger.info(s"筛选过后符合条件的物品数量为：${filtedResult.count()}")
