@@ -131,9 +131,11 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     } else {
       result
     }
+
+
     //随机森林过滤
     val randomModel = model.randomForestModel
-    val filtedResult = limitResult.filter(r => {
+    val filtedResult = limitResult.collect().filter(r => {
       val v = Vectors.dense(query.user.toInt, r._1.toInt)
       val rate = randomModel.predict(v)
       rate > 3.0
@@ -142,11 +144,10 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     //logger.info(s"筛选过后符合条件的物品数量为：${filtedResult.count()}")
     //排序取TopN
-    val preResult = filtedResult.sortBy(_._2, false).take(query.num)
+    val preResult = filtedResult.sortBy(_._2).reverse.take(query.num)
 
     //归一化并加上权重
     val sum = preResult.map(r => r._2).sum
-
     if (sum == 0) return PredictedResult(Array.empty)
 
     val weight = 1
