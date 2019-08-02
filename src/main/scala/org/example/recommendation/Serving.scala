@@ -21,10 +21,10 @@ class Serving
   def serve(query: Query,
     predictedResults: Seq[PredictedResult]): PredictedResult = {
 
-    logger.info(s"推荐结果集的个数：${predictedResults.size}")
+
 
     val result2 =predictedResults.flatMap(singleResult=>{
-      val r: PredictedResult =singleResult
+
       singleResult.itemScores.map(r=>{
         (r.item,r.score)
       })
@@ -32,6 +32,7 @@ class Serving
       r2._2.reduce((a1,a2)=>{(a1._1,a1._2+a2._2)})
     })
 
+    logger.info(s"总推荐个数：${result2.size}")
 
    val rr2 =result2.toArray.sortBy(_._2).reverse
      .take(query.num)

@@ -8,7 +8,6 @@ import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -56,74 +55,67 @@ class NBAlgorithm(val ap: NBAlgorithmParams) extends PAlgorithm[PreparedData, NB
   }
 
   override def predict(model: NBModel, query: Query): PredictedResult = {
-    val uMap = model.userMap.collectAsMap()
-    if (!uMap.contains(query.user)) {
+
+    //1.判断当前用户有没有看过电影
+    val currentUserRDD = model.userMap.filter(r => r._1 == query.user)
+    if (currentUserRDD.count() == 0) {
       //该用户没有过评分记录，返回空值
-      logger.warn(s"该用户没有过评分记录，无法生成推荐！${query.user}")
+      logger.warn(s"该用户:${query.user}没有过评分记录，无法生成推荐！")
       return PredictedResult(Array.empty)
     }
 
-    //1.获取当前要推荐用户的Pearson值最大的用户列表
-    val userPearson = model.userNearestPearson.collectAsMap()
-    if (!userPearson.contains(query.user)) {
-      //该用户没有对应的Pearson相似用户
-      logger.warn(s"该用户没有相似的用户，无法生成推荐！${query.user}")
+    //2.获取当前用户的Pearson值最大的用户列表
+    //2.1 判断有没有列表
+    val similaryUers = model.userNearestPearson.filter(r => r._1 == query.user)
+    if (similaryUers.count() == 0) {
+      //该用户没有最相似的Pearson用户列表
+      logger.warn(s"该用户:${query.user}没有Pearson相似用户列表，无法生成推荐！")
       return PredictedResult(Array.empty)
     }
 
-    //2.所有用户最喜欢的前N部电影
-    val userLikes = model.userLikesBeyondMean.collectAsMap()
+    val pUsersMap: collection.Map[String, Double] = similaryUers.flatMap(r => r._2).collectAsMap()
+    //这是当前查询用户已经看过的电影
+    val userSawMovie = currentUserRDD.flatMap(r => r._2.map(rr => (rr.item, rr.rating))).collectAsMap()
 
-    //当前用户已经观看过的列表
-    val sawItem = uMap(query.user).map(r => (r.item, r.rating)).toMap
 
-    //存储结果的列表
-    val pearsonResult = new mutable.HashMap[String, Double]()
-    //与当前查询用户相似度最高的用户，其观看过的且查询用户未看过的电影列表。
-    userPearson(query.user).foreach(r => {
-      //r._1 //相似的userID
-      // r._2 //相似度
-      if (userLikes.contains(r._1)) {
-        //r._1用户有最喜欢的电影记录
-        userLikes(r._1).map(r1 => {
-          //r1.item
-          //r1.rating
-          if (!sawItem.contains(r1.item)) {
-            //当前用户未观看过的电影r1.item
-            if (pearsonResult.contains(r1.item)) {
-              //这是已经在推荐列表中
-              pearsonResult.update(r1.item, pearsonResult(r1.item) + r1.rating * r._2)
-            } else {
-              pearsonResult.put(r1.item, r1.rating * r._2)
-            }
-          }
-        })
-      }
-    })
+    val result: RDD[(String, Double)] = model.userLikesBeyondMean.filter(r => {
+      // r._1 用户ID
+      //3.1 筛选相关用户看过的电影列表
+      pUsersMap.contains(r._1)
+    }).flatMap(r => {
+      //r: (String, Iterable[Rating])
+      //3.2 生成每一个item的积分
+      r._2.map(r2 => {
+        (r2.item, r2.rating * pUsersMap(r._1))
+      })
+    }).filter(r => {
+      //r._1 itemID
+      // 3.3 过滤掉用户已经看过的电影
+      !userSawMovie.contains(r._1)
+    }).reduceByKey(_ + _)
 
 
     val neurModel = model.navieBayesModel
-    val filtedResult = pearsonResult.filter(re => {
+    val filtedResult = result.filter(re => {
       val v = Vectors.dense(query.user.toInt, re._1.toInt)
       neurModel.predict(v) == 1.0
     })
 
 
     //排序取TopN
-    val preResult = filtedResult.map(r => (r._1, r._2)).toList.sortBy(_._2).reverse.take(query.num).map(r => (r._1, r._2))
+    val preResult = filtedResult.map(r => (r._1, r._2)).sortBy(_._2,false).take(query.num)
 
     //归一化并加上权重
     val sum = preResult.map(r => r._2).sum
-
     if(sum==0) return PredictedResult(Array.empty)
 
     val weight = 1.0
-    val returnResult = pearsonResult.map(r => {
+    val returnResult = preResult.map(r => {
       ItemScore(r._1, r._2 / sum * weight)
     })
 
     //排序，返回结果
-    PredictedResult(returnResult.toArray)
+    PredictedResult(returnResult)
   }
 
   override def batchPredict(m: NBModel, qs: RDD[(Long, Query)]): RDD[(Long, PredictedResult)] = {
