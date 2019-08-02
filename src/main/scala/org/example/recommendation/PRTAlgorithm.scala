@@ -120,18 +120,18 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
       //r._1 itemID
       // 3.3 过滤掉用户已经看过的电影
       !userSawMovie.contains(r._1)
-    }).reduceByKey(_ + _)
+    }).reduceByKey((l,r)=>l.max(r)) //若这里采用累加的方式，会产生受欢迎物品的集中
 
 
     if (result.count() == 0) return PredictedResult(Array.empty)
 
     //随机森林过滤
     val randomModel = model.randomForestModel
-    val filtedResult = result.map(r => {
+    val filtedResult = result.filter(r => {
       val v = Vectors.dense(query.user.toInt, r._1.toInt)
       val rate= randomModel.predict(v)
-      (r._1,r._2*(rate/5.0),rate>3.0)
-    }).filter(r=>r._3).map(r=>(r._1,r._2))
+      rate>3.0
+    })
 
 
     //logger.info(s"筛选过后符合条件的物品数量为：${filtedResult.count()}")
