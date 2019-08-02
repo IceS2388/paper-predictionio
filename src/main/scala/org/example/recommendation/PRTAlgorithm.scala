@@ -23,6 +23,7 @@ case class PRTAlgorithmParams(
                                pearsonThreashold: Int = 10,
                                numNearestUsers: Int = 60,
                                numUserLikeMovies: Int = 100,
+                               numClass:Int=10,
                                numTrees: Int = 5,
                                featureSubsetStrategy: String = "auto",
                                impurity: String = "gini",
@@ -55,13 +56,7 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     // 用户观看过后喜欢的列表(列表长度需要限制一下) 和 pearson系数最大的前TopN个用户的列表
     val (userLikes,nearstPearson) = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
 
-    //3.训练RandomForestModel
-    /*//3.1 计算用户的平均分
-    val userMean = userRatings.map(r => {
-      val sum = r._2.toSeq.map(r2 => r2.rating).sum
-      val size = r._2.size
-      (r._1, sum / size)
-    })*/
+
 
     //3.2 处理处理数据格式
     val trainingData = data.ratings.map(r => {
@@ -69,13 +64,12 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
     })
 
     //3.3 准备模型参数
-    //分类数目
-    val numClass = 10
+
     //设定输入数据格式
     val categoricalFeaturesInfo = Map[Int, Int]()
 
 
-    val model = RandomForest.trainClassifier(trainingData, numClass, categoricalFeaturesInfo, ap.numTrees, ap.featureSubsetStrategy.toLowerCase(), ap.impurity.toLowerCase(), ap.maxDepth, ap.maxBins)
+    val model = RandomForest.trainClassifier(trainingData, ap.numClass, categoricalFeaturesInfo, ap.numTrees, ap.featureSubsetStrategy.toLowerCase(), ap.impurity.toLowerCase(), ap.maxDepth, ap.maxBins)
 
     new PRTModel(sc.parallelize(userRatings.toSeq),
       sc.parallelize(nearstPearson.toSeq), //最近的N个用户列表

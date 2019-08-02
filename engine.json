@@ -40,6 +40,7 @@
         "pearsonThreashold": 10,
         "numNearestUsers": 60,
         "numUserLikeMovies": 100,
+        "numClass": 10,
         "numTrees": 5,
         "featureSubsetStrategy" : "auto",
         "impurity": "gini",
