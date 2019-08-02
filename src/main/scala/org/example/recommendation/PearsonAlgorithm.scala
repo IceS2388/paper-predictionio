@@ -28,12 +28,12 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
     val userRatings: Map[String, Iterable[Rating]] = data.ratings.groupBy(r => r.user).collectAsMap().toMap
 
     //2.计算用户与用户之间Pearson系数，并返回用户观看过后喜欢的列表和pearson系数最大的前TopN个用户的列表
-    val userLikesAndNearstPearson = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
+    val (userLikes,nearstPearson) = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
 
     new PearsonModel(
       sc.parallelize(userRatings.toSeq),
-      sc.parallelize(userLikesAndNearstPearson._2.toSeq), //用户Pearson系数最近的N个用户
-      sc.parallelize(userLikesAndNearstPearson._1.toSeq) //用户喜欢的N部电影
+      sc.parallelize(nearstPearson.toSeq), //用户Pearson系数最近的N个用户
+      sc.parallelize(userLikes.toSeq) //用户喜欢的N部电影
     )
   }
 

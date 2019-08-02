@@ -53,33 +53,37 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     //2.计算用户与用户之间Pearson系数，并返回
     // 用户观看过后喜欢的列表(列表长度需要限制一下) 和 pearson系数最大的前TopN个用户的列表
-    val userLikesAndNearstPearson = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
+    val (userLikes,nearstPearson) = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
 
     //3.训练RandomForestModel
-    //3.1 计算用户的平均分
+    /*//3.1 计算用户的平均分
     val userMean = userRatings.map(r => {
       val sum = r._2.toSeq.map(r2 => r2.rating).sum
       val size = r._2.size
       (r._1, sum / size)
-    })
+    })*/
 
     //3.2 处理处理数据格式
     val trainingData = data.ratings.map(r => {
-      val like = if (r.rating > userMean(r.user)) 1.0 else 0D
-      LabeledPoint(like, Vectors.dense(r.user.toInt, r.item.toInt))
+      LabeledPoint(r.rating, Vectors.dense(r.user.toInt, r.item.toInt))
     })
 
     //3.3 准备模型参数
     //分类数目
-    val numClass = 2
+    val numClass = 5
     //设定输入数据格式
-    val categoricalFeaturesInfo = Map[Int, Int]()
+    val categoricalFeaturesInfo = Map[Int, Int](0->1,
+      1->2,
+      2->3,
+      3->4,
+      4->5)
+
 
     val model = RandomForest.trainClassifier(trainingData, numClass, categoricalFeaturesInfo, ap.numTrees, ap.featureSubsetStrategy.toLowerCase(), ap.impurity.toLowerCase(), ap.maxDepth, ap.maxBins)
 
     new PRTModel(sc.parallelize(userRatings.toSeq),
-      sc.parallelize(userLikesAndNearstPearson._2.toSeq), //最近的N个用户列表
-      sc.parallelize(userLikesAndNearstPearson._1.toSeq), //用户的喜欢列表
+      sc.parallelize(nearstPearson.toSeq), //最近的N个用户列表
+      sc.parallelize(userLikes.toSeq), //用户的喜欢列表
       model)
 
   }
@@ -131,10 +135,12 @@ class PRTAlgorithm(val ap: PRTAlgorithmParams) extends PAlgorithm[PreparedData, 
 
     if (result.count() == 0) return PredictedResult(Array.empty)
 
+    //随机森林过滤
     val randomModel = model.randomForestModel
-    val filtedResult = result.filter(r => {
+    val filtedResult = result.map(r => {
       val v = Vectors.dense(query.user.toInt, r._1.toInt)
-      randomModel.predict(v) == 1.0
+      val rate= randomModel.predict(v)/5.0
+      (r._1,r._2*rate)
     })
 
 
