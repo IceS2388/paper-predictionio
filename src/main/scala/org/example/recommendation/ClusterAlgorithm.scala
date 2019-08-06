@@ -11,6 +11,7 @@ import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StructField, StructType}
 import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.util.AccumulatorV2
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -122,7 +123,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       (r._1, r._2._1)
     }).sortBy(_._2.toInt).collect()
 
-    val userNearestMap = new mutable.HashMap[String, Double]()
+    val userNearestAccumulator = new NearestUserAccumulator
 
     for {
       (cIdx, u1) <- users
@@ -133,10 +134,10 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       //当前用户的评分向量
       val v1: linalg.Vector = cUsers.filter(_._1 == u1).map(_._2).first()
       logger.info("v1:"+v1)
-      val oldS=userNearestMap.size
+      val oldS=userNearestAccumulator.value.size
 
       for {(u2, v2) <- cUsers
-        if u1!=u2 && !(userNearestMap.contains(s",$u1,$u2,") || userNearestMap.contains(s",$u2,$u1,"))
+        if u1!=u2 && !(userNearestAccumulator.value.contains(s",$u1,$u2,") || userNearestAccumulator.value.contains(s",$u2,$u1,"))
       } {
         //调试信息
         //logger.info("v1:"+v1)
@@ -146,38 +147,38 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         if (ps > 0) {
 
           //限制u1相似度列表的大小
-          val u1SCount=userNearestMap.count(r=>(r._1.indexOf(s",$u1,") > -1))
+          val u1SCount=userNearestAccumulator.value.count(r=>(r._1.indexOf(s",$u1,") > -1))
           //限制u2相似度列表的大小
-          val u2SCount=userNearestMap.count(r=>(r._1.indexOf(s",$u2,") > -1))
+          val u2SCount=userNearestAccumulator.value.count(r=>(r._1.indexOf(s",$u2,") > -1))
           logger.info(s"u1SCount:$u1SCount,u2SCount:$u2SCount")
           val key=s",$u1,$u2,"
           if(u1SCount<=numNearestUsers && u2SCount<=numNearestUsers){
-            userNearestMap.put(key,ps)
+            userNearestAccumulator.add((key,ps))
           }else{
             if(u1SCount>numNearestUsers){
               //选择小的替换
-              val min_p: (String, Double) =userNearestMap.filter(r=>(r._1.indexOf(","+u1+",") > -1)).minBy(_._2)
+              val min_p: (String, Double) =userNearestAccumulator.value.filter(r=>(r._1.indexOf(","+u1+",") > -1)).minBy(_._2)
               if (ps > min_p._2) {
-                userNearestMap.remove(min_p._1)
-                userNearestMap.put(key, ps)
+                userNearestAccumulator.value.remove(min_p._1)
+                userNearestAccumulator.add((key, ps))
               }
             }
 
             if(u2SCount>numNearestUsers){
               //选择小的替换
-              val min_p: (String, Double) =userNearestMap.filter(r=>(r._1.indexOf(","+u2+",") > -1)).minBy(_._2)
+              val min_p: (String, Double) =userNearestAccumulator.value.filter(r=>(r._1.indexOf(","+u2+",") > -1)).minBy(_._2)
               if (ps > min_p._2) {
-                userNearestMap.remove(min_p._1)
-                userNearestMap.put(key, ps)
+                userNearestAccumulator.value.remove(min_p._1)
+                userNearestAccumulator.add((key, ps))
               }
             }
 
           }
         }
       }
-      logger.info(s"本次增加了${userNearestMap.size-oldS}条记录.")
+      logger.info(s"本次增加了${userNearestAccumulator.value.size-oldS}条记录.")
     }
-    userNearestMap
+    userNearestAccumulator.value
   }
 
   //尝试cos相似度
@@ -345,5 +346,41 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     }
     logger.info(s"result的大小:${result.length}")
     qs.sparkContext.parallelize(result)
+  }
+}
+
+class NearestUserAccumulator extends AccumulatorV2[(String,Double),mutable.Map[String,Double]]{
+  private  val mapAccumulator = mutable.Map[String,Double]()
+  override def isZero: Boolean = {
+    mapAccumulator.isEmpty
+  }
+
+  override def copy(): AccumulatorV2[(String, Double), mutable.Map[String, Double]] = {
+    val newMapAccumulator = new  NearestUserAccumulator()
+    mapAccumulator.foreach(x=>newMapAccumulator.add(x))
+    newMapAccumulator
+  }
+
+  override def reset(): Unit = {
+    mapAccumulator.clear()
+  }
+
+  override def add(v: (String, Double)): Unit = {
+    val key=v._1
+    val value=v._2
+    if(!mapAccumulator.contains(key))
+      mapAccumulator+=key->value
+    else
+      mapAccumulator.put(key,value)
+  }
+
+  override def merge(other: AccumulatorV2[(String, Double), mutable.Map[String, Double]]): Unit = {
+    other.value.foreach(r=>{
+      this.add(r)
+    })
+  }
+
+  override def value: mutable.Map[String, Double] = {
+    mapAccumulator
   }
 }
