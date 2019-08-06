@@ -63,8 +63,8 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         |COUNT(CASE WHEN rating=4.5 THEN 1 END) AS c9,
         |COUNT(CASE WHEN rating=5.0 THEN 1 END) AS c10
         |FROM ratings
-        |GROUP BY userId
-        |ORDER BY userId ASC
+        |GROUP BY uid
+        |ORDER BY uid ASC
       """.stripMargin)
     userVectorsDF.createOrReplaceTempView("uv")
 
