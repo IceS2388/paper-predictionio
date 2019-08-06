@@ -130,15 +130,13 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       val curUsersVectors = clustedRDD.filter(_._1 == idx).map(_._2).map(r =>(r._1.toInt, r._2)).cache()
       logger.info(s"族$idx 中用户数量为：${curUsersVectors.count()}")
 
-      val uids=curUsersVectors.sortBy(_._1).map(_._1).collect()
+      val uids: Array[(Int, linalg.Vector)] =curUsersVectors.sortBy(_._1).collect()
 
       for {
-        u1 <- uids
-        u2 <- uids
+        (u1,v1) <- uids
+        (u2,v2) <- uids
         if u1 < u2
       } {
-        val v1=curUsersVectors.filter(_._1==u1).first()._2
-        val v2=curUsersVectors.filter(_._1==u2).first()._2
 
         val score = getImprovePearson(v1, v2)
         logger.info(s"score:$score")
@@ -151,11 +149,11 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
           logger.info(s"u1SCount:$u1SCount,u2SCount:$u2SCount")
 
 
-          if (u1SCount <= numNearestUsers && u2SCount <= numNearestUsers) {
+          if (u1SCount < numNearestUsers && u2SCount < numNearestUsers) {
             userNearestAccumulator.add(u1, u2, score)
           } else {
 
-            if (u1SCount > numNearestUsers) {
+            if (u1SCount >= numNearestUsers) {
               //选择小的替换
               val min_p: (String, Double) = userNearestAccumulator.value.filter(r => r._1.indexOf("," + u1 + ",") > -1).minBy(_._2)
               if (score > min_p._2) {
@@ -164,7 +162,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
               }
             }
 
-            if (u2SCount > numNearestUsers) {
+            if (u2SCount >= numNearestUsers) {
               //选择小的替换
               val min_p: (String, Double) = userNearestAccumulator.value.filter(r => r._1.indexOf("," + u2 + ",") > -1).minBy(_._2)
               if (score > min_p._2) {
