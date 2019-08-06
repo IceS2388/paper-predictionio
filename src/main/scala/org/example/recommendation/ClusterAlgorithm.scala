@@ -132,12 +132,14 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       //当前用户的评分向量
       val v1: linalg.Vector = cUsers.filter(_._1 == uid).map(_._2).first()
 
-      for ((u2, v2) <- cUsers) {
+      for {(u2, v2) <- cUsers
+        if uid!=u2
+      } {
         //调试信息
-        logger.info("v1:"+v1)
-        logger.info("v2:"+v2)
+        //logger.info("v1:"+v1)
+        //logger.info("v2:"+v2)
         val ps = getCosineSimilarity(v1, v2)
-        logger.info("相似度:"+ps)
+        //logger.info("相似度:"+ps)
         if (ps > 0) {
           //有用的相似度
           if (maxPearson.size < numNearestUsers) {
@@ -153,7 +155,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         }
       }
 
-      logger.info(s"user:$uid nearest users count:${maxPearson.count(_ => true)}")
+      //logger.info(s"user:$uid nearest users count:${maxPearson.count(_ => true)}")
       userNearestPearson.put(uid, maxPearson.toList.sortBy(_._2).reverse)
     }
     userNearestPearson
