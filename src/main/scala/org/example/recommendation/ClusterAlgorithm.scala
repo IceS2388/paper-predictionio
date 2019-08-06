@@ -67,6 +67,9 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         |ORDER BY uid ASC
       """.stripMargin)
     userVectorsDF.createOrReplaceTempView("uv")
+    //调试信息
+    userVectorsDF.printSchema()
+    userVectorsDF.show(10)
 
     val userVectorsRDD = userVectorsDF.rdd.map(r => {
       (r.get(0).toString,
@@ -81,12 +84,17 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
           r.get(8).toString.toDouble,
           r.get(9).toString.toDouble,
           r.get(10).toString.toDouble)))
-    }).cache()
+    })
     val featuresRDD = userVectorsRDD.map(_._2)
+    //调试信息
+    logger.info(s"featuresRDD.count:${featuresRDD.count()}")
 
     //3.准备聚类
     val bkm = new BisectingKMeans().setK(ap.k).setMaxIterations(ap.maxIterations)
     val model = bkm.run(featuresRDD)
+
+    //调试信息
+    model.clusterCenters.foreach(println)
 
     //4.聚类用户评分向量(族ID,评分向量)
     val afterClusterRDD: RDD[(Int, (String, linalg.Vector))] = userVectorsRDD.map(r => {
@@ -95,8 +103,13 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
 
     //5.生成用户喜欢的电影
     val userLikedRDD: RDD[(String, Seq[Rating])] = userLikedItems(ap.numUserLikeMovies, pd.ratings)
+    //调试信息
+    logger.info("userLikedRDD.count()"+userLikedRDD.count())
+
     //6.根据用户评分向量生成用户最邻近用户的列表
     val nearestUser: mutable.Map[String, List[(String, Double)]] = userNearestTopN(ap.numNearestUsers, afterClusterRDD)
+    //调试信息
+    logger.info("nearestUser.count()"+nearestUser.size)
 
     new ClusterModel(userLikedRDD,sc.parallelize(nearestUser.toSeq))
   }
@@ -120,8 +133,11 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       val v1: linalg.Vector = cUsers.filter(_._1 == uid).map(_._2).first()
 
       for ((u2, v2) <- cUsers) {
-
+        //调试信息
+        logger.info("v1:"+v1)
+        logger.info("v2:"+v2)
         val ps = getCosineSimilarity(v1, v2)
+        logger.info("相似度:"+ps)
         if (ps > 0) {
           //有用的相似度
           if (maxPearson.size < numNearestUsers) {
@@ -137,7 +153,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         }
       }
 
-      logger.info(s"user:$uid nearest pearson users count:${maxPearson.count(_ => true)}")
+      logger.info(s"user:$uid nearest users count:${maxPearson.count(_ => true)}")
       userNearestPearson.put(uid, maxPearson.toList.sortBy(_._2).reverse)
     }
     userNearestPearson
