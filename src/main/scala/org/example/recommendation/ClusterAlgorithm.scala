@@ -122,7 +122,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       (r._1, r._2._1)
     }).sortBy(_._2.toInt).collect()
 
-    val userNearest: mutable.Map[String, Double] = new mutable.HashMap[String, Double]()
+    val userNearestMap = new mutable.HashMap[String, Double]()
 
     for {
       (cIdx, u1) <- users
@@ -133,51 +133,51 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       //当前用户的评分向量
       val v1: linalg.Vector = cUsers.filter(_._1 == u1).map(_._2).first()
       logger.info("v1:"+v1)
-      val oldS=userNearest.size
+      val oldS=userNearestMap.size
 
       for {(u2, v2) <- cUsers
-        if u1!=u2 && !(userNearest.contains(s",$u1,$u2,") || userNearest.contains(s",$u2,$u1,"))
+        if u1!=u2 && !(userNearestMap.contains(s",$u1,$u2,") || userNearestMap.contains(s",$u2,$u1,"))
       } {
         //调试信息
         //logger.info("v1:"+v1)
         //logger.info("v2:"+v2)
         val ps = getCosineSimilarity(v1, v2)
-        //logger.info("相似度:"+ps)
+        logger.info("相似度:"+ps)
         if (ps > 0) {
 
           //限制u1相似度列表的大小
-          val u1SCount=userNearest.filter(r=>(r._1.indexOf(","+u1+",") > -1)).size
+          val u1SCount=userNearestMap.count(r=>(r._1.indexOf(s",$u1,") > -1))
           //限制u2相似度列表的大小
-          val u2SCount=userNearest.filter(r=>(r._1.indexOf(","+u2+",") > -1)).size
-
+          val u2SCount=userNearestMap.count(r=>(r._1.indexOf(s",$u2,") > -1))
+          logger.info(s"u1SCount:$u1SCount,u2SCount:$u2SCount")
           val key=s",$u1,$u2,"
           if(u1SCount<=numNearestUsers && u2SCount<=numNearestUsers){
-            userNearest.put(key,ps)
+            userNearestMap.put(key,ps)
           }else{
             if(u1SCount>numNearestUsers){
               //选择小的替换
-              val min_p: (String, Double) =userNearest.filter(r=>(r._1.indexOf(","+u1+",") > -1)).minBy(_._2)
+              val min_p: (String, Double) =userNearestMap.filter(r=>(r._1.indexOf(","+u1+",") > -1)).minBy(_._2)
               if (ps > min_p._2) {
-                userNearest.remove(min_p._1)
-                userNearest.put(key, ps)
+                userNearestMap.remove(min_p._1)
+                userNearestMap.put(key, ps)
               }
             }
 
             if(u2SCount>numNearestUsers){
               //选择小的替换
-              val min_p: (String, Double) =userNearest.filter(r=>(r._1.indexOf(","+u2+",") > -1)).minBy(_._2)
+              val min_p: (String, Double) =userNearestMap.filter(r=>(r._1.indexOf(","+u2+",") > -1)).minBy(_._2)
               if (ps > min_p._2) {
-                userNearest.remove(min_p._1)
-                userNearest.put(key, ps)
+                userNearestMap.remove(min_p._1)
+                userNearestMap.put(key, ps)
               }
             }
 
           }
         }
       }
-      logger.info(s"本次增加了${userNearest.size-oldS}条记录.")
+      logger.info(s"本次增加了${userNearestMap.size-oldS}条记录.")
     }
-    userNearest
+    userNearestMap
   }
 
   //尝试cos相似度
