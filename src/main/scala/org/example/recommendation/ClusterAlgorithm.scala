@@ -125,7 +125,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     sc.register(userNearestAccumulator, "userNearestAccumulator")
 
     //1.考虑从族中进行计算相似度
-    (0 until k).foreach(idx => {
+    for(idx <- 0 until k){
       val curUsersVectors = clustedRDD.filter(_._1 == idx).map(_._2).map(r =>
         (r._1.toInt, r._2)).cache()
       logger.info(s"族$idx 中用户数量为：${curUsersVectors.count()}")
@@ -171,7 +171,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         }//end  if (score > 0) {
       }
       logger.info(s"累加器数据条数：${userNearestAccumulator.value.size}条记录.")
-    })
+    }
 
 
     userNearestAccumulator.value
