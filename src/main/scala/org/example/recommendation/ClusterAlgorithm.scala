@@ -147,9 +147,9 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         if (ps > 0) {
 
           //限制u1相似度列表的大小
-          val u1SCount=userNearestAccumulator.value.count(r=>(r._1.indexOf(s",$u1,") > -1))
+          val u1SCount=userNearestAccumulator.value.count(r=>r._1.indexOf(s",$u1,") > -1)
           //限制u2相似度列表的大小
-          val u2SCount=userNearestAccumulator.value.count(r=>(r._1.indexOf(s",$u2,") > -1))
+          val u2SCount=userNearestAccumulator.value.count(r=>r._1.indexOf(s",$u2,") > -1)
           logger.info(s"u1SCount:$u1SCount,u2SCount:$u2SCount")
           val key=s",$u1,$u2,"
           if(u1SCount<=numNearestUsers && u2SCount<=numNearestUsers){
@@ -157,7 +157,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
           }else{
             if(u1SCount>numNearestUsers){
               //选择小的替换
-              val min_p: (String, Double) =userNearestAccumulator.value.filter(r=>(r._1.indexOf(","+u1+",") > -1)).minBy(_._2)
+              val min_p: (String, Double) =userNearestAccumulator.value.filter(r=>r._1.indexOf(","+u1+",") > -1).minBy(_._2)
               if (ps > min_p._2) {
                 userNearestAccumulator.value.remove(min_p._1)
                 userNearestAccumulator.add((key, ps))
@@ -166,7 +166,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
 
             if(u2SCount>numNearestUsers){
               //选择小的替换
-              val min_p: (String, Double) =userNearestAccumulator.value.filter(r=>(r._1.indexOf(","+u2+",") > -1)).minBy(_._2)
+              val min_p: (String, Double) =userNearestAccumulator.value.filter(r=>r._1.indexOf(","+u2+",") > -1).minBy(_._2)
               if (ps > min_p._2) {
                 userNearestAccumulator.value.remove(min_p._1)
                 userNearestAccumulator.add((key, ps))
@@ -278,10 +278,10 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       try {
         event.targetEntityId.get
       } catch {
-        case e: Exception => {
+        case e: Exception =>
           logger.error(s"Can't get targetEntityId of event $event.")
           throw e
-        }
+
       }
     }.toSet
 
@@ -304,7 +304,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     val userNearestMap=userNearestRDD.map(r=>{
       val uid= r._1.replace(s",${query.user},","").replace(",","")
       (uid,r._2)
-    }).sortBy(_._2,false).collectAsMap()
+    }).sortBy(_._2,ascending = false).collectAsMap()
     logger.info(s"${query.user}的相似用户列表的长度为：${userNearestMap.size}")
 
     //用户的已经观看列表
@@ -326,7 +326,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     val weight = 1.0
     val returnResult = result.map(r => {
       ItemScore(r._1, r._2 / sum * weight)
-    }).sortBy(r => r.score, false).take(query.num)
+    }).sortBy(r => r.score, ascending = false).take(query.num)
 
     //排序，返回结果
     PredictedResult(returnResult)
@@ -349,7 +349,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
   }
 }
 
-class NearestUserAccumulator extends AccumulatorV2[(String,Double),mutable.Map[String,Double]]{
+class NearestUserAccumulator extends AccumulatorV2[(String,Double),mutable.Map[String,Double]] with Serializable {
   private  val mapAccumulator = mutable.Map[String,Double]()
   override def isZero: Boolean = {
     mapAccumulator.isEmpty
