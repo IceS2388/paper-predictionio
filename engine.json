@@ -9,6 +9,16 @@
   },
   "algorithms": [
     {
+      "name": "cluster",
+      "params": {
+        "appName": "MyApp1",
+        "k": 10,
+        "maxIterations": 20,
+        "numNearestUsers": 60,
+        "numUserLikeMovies": 100
+      }
+    }
+    ,{
       "name": "pearson",
       "params": {
         "pearsonThreashold": 10,

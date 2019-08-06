@@ -61,6 +61,8 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
     val userSawMovie = currentUserRDD.flatMap(r => r._2.map(rr => (rr.item, rr.rating))).collectAsMap()
 
 
+
+
     //3. 从用户喜欢的电影列表，获取相似度用户看过的电影
     //原先的版本是从用户看过的列表中选择
     val result: RDD[(String, Double)] = model.userLikesBeyondMean.filter(r => {

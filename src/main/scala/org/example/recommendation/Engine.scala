@@ -61,6 +61,7 @@ object RecommendationEngine extends EngineFactory {
       classOf[DataSource],
       classOf[Preparator],
       Map(
+        "cluster" -> classOf[ClusterAlgorithm],
         "pearson" -> classOf[PearsonAlgorithm],
         "nb" -> classOf[NBAlgorithm],
         "als" -> classOf[ALSAlgorithm],
