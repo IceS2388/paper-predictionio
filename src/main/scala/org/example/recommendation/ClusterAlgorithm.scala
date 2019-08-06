@@ -104,12 +104,12 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     //5.生成用户喜欢的电影
     val userLikedRDD: RDD[(String, Seq[Rating])] = userLikedItems(ap.numUserLikeMovies, pd.ratings)
     //调试信息
-    logger.info("userLikedRDD.count()"+userLikedRDD.count())
+    logger.info("userLikedRDD.count() "+userLikedRDD.count())
 
     //6.根据用户评分向量生成用户最邻近用户的列表
     val nearestUser:mutable.Map[String, Double] = userNearestTopN(ap.numNearestUsers, afterClusterRDD)
     //调试信息
-    logger.info("nearestUser.count()"+nearestUser.size)
+    logger.info("nearestUser.count():"+nearestUser.size)
     nearestUser.take(10).foreach(println)
 
     new ClusterModel(userLikedRDD,sc.parallelize(nearestUser.toSeq))
@@ -118,19 +118,22 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
   def userNearestTopN(numNearestUsers: Int, clustedRDD: RDD[(Int, (String, linalg.Vector))]):mutable.Map[String, Double]= {
     //clustedRDD: RDD[(Int, (Int, linalg.Vector))]
     //                簇Index  Uid    评分向量
-    val users = clustedRDD.map(r => {
+    val users: Array[(Int, String)] = clustedRDD.map(r => {
       (r._1, r._2._1)
-    }).collect()
+    }).sortBy(_._2.toInt).collect()
 
     val userNearest: mutable.Map[String, Double] = new mutable.HashMap[String, Double]()
+
     for {
       (cIdx, u1) <- users
     } {
 
       val cUsers: RDD[(String, linalg.Vector)] = clustedRDD.filter(_._1 == cIdx).map(_._2).cache()
-
+      logger.info(s"族$cIdx 中用户数量为：${cUsers.count()}")
       //当前用户的评分向量
       val v1: linalg.Vector = cUsers.filter(_._1 == u1).map(_._2).first()
+      logger.info("v1:"+v1)
+      val oldS=userNearest.size
 
       for {(u2, v2) <- cUsers
         if u1!=u2 && !(userNearest.contains(s",$u1,$u2,") || userNearest.contains(s",$u2,$u1,"))
@@ -172,6 +175,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
           }
         }
       }
+      logger.info(s"本次增加了${userNearest.size-oldS}条记录.")
     }
     userNearest
   }
@@ -190,6 +194,34 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       0D
     else
       sum / (Math.sqrt(v1Len) * Math.sqrt(v2Len))
+  }
+
+  /**改进Pearson算法
+    * r=sum((x-x_mean)*(y-y_mean))/(Math.pow(sum(x-x_mean),0.5)*Math.pow(sum(y-y_mean),0.5))
+    * */
+  def getImprovePearson(v1:linalg.Vector,v2:linalg.Vector):Double={
+    var sum1 = 0D
+    var sum2 = 0D
+    for (idx <- 0 until v1.size) {
+      sum1 += v1.apply(idx)
+      sum2 += v2.apply(idx)
+    }
+    val mean1=sum1/v1.size
+    val mean2=sum2/v2.size
+    var sum=0D
+    sum1=0
+    sum2=0
+    for (idx <- 0 until v1.size) {
+      sum+=(v1.apply(idx)-mean1)*(v2.apply(idx)-mean2)
+      sum1 += (v1.apply(idx)-mean1)
+      sum2 += (v2.apply(idx)-mean2)
+    }
+    val sum1sum2=Math.sqrt(sum1)*Math.sqrt(sum2)
+
+    if(sum1sum2==0)
+      0
+    else
+      sum/sum1sum2
   }
 
   def userLikedItems(numUserLikeMovies: Int, data: RDD[Rating]): RDD[(String, Seq[Rating])] = {
