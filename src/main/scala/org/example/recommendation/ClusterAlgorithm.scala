@@ -107,33 +107,33 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     logger.info("userLikedRDD.count()"+userLikedRDD.count())
 
     //6.根据用户评分向量生成用户最邻近用户的列表
-    val nearestUser: mutable.Map[String, List[(String, Double)]] = userNearestTopN(ap.numNearestUsers, afterClusterRDD)
+    val nearestUser:mutable.Map[String, Double] = userNearestTopN(ap.numNearestUsers, afterClusterRDD)
     //调试信息
     logger.info("nearestUser.count()"+nearestUser.size)
+    nearestUser.take(10).foreach(println)
 
     new ClusterModel(userLikedRDD,sc.parallelize(nearestUser.toSeq))
   }
 
-  def userNearestTopN(numNearestUsers: Int, clustedRDD: RDD[(Int, (String, linalg.Vector))]): mutable.Map[String, List[(String, Double)]] = {
+  def userNearestTopN(numNearestUsers: Int, clustedRDD: RDD[(Int, (String, linalg.Vector))]):mutable.Map[String, Double]= {
     //clustedRDD: RDD[(Int, (Int, linalg.Vector))]
     //                簇Index  Uid    评分向量
     val users = clustedRDD.map(r => {
       (r._1, r._2._1)
     }).collect()
 
-    val userNearestPearson: mutable.Map[String, List[(String, Double)]] = new mutable.HashMap[String, List[(String, Double)]]()
+    val userNearest: mutable.Map[String, Double] = new mutable.HashMap[String, Double]()
     for {
-      (cIdx, uid) <- users
+      (cIdx, u1) <- users
     } {
 
-      val maxPearson: mutable.Map[String, Double] = mutable.HashMap.empty
       val cUsers: RDD[(String, linalg.Vector)] = clustedRDD.filter(_._1 == cIdx).map(_._2).cache()
 
       //当前用户的评分向量
-      val v1: linalg.Vector = cUsers.filter(_._1 == uid).map(_._2).first()
+      val v1: linalg.Vector = cUsers.filter(_._1 == u1).map(_._2).first()
 
       for {(u2, v2) <- cUsers
-        if uid!=u2
+        if u1!=u2 && !(userNearest.contains(s",$u1,$u2,") || userNearest.contains(s",$u2,$u1,"))
       } {
         //调试信息
         //logger.info("v1:"+v1)
@@ -141,24 +141,39 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         val ps = getCosineSimilarity(v1, v2)
         //logger.info("相似度:"+ps)
         if (ps > 0) {
-          //有用的相似度
-          if (maxPearson.size < numNearestUsers) {
-            maxPearson.put(u2, ps)
-          } else {
-            val min_p = maxPearson.map(r => (r._1, r._2)).minBy(r => r._2)
-            if (ps > min_p._2) {
-              maxPearson.remove(min_p._1)
-              maxPearson.put(u2, ps)
+
+          //限制u1相似度列表的大小
+          val u1SCount=userNearest.filter(r=>(r._1.indexOf(","+u1+",") > -1)).size
+          //限制u2相似度列表的大小
+          val u2SCount=userNearest.filter(r=>(r._1.indexOf(","+u2+",") > -1)).size
+
+          val key=s",$u1,$u2,"
+          if(u1SCount<=numNearestUsers && u2SCount<=numNearestUsers){
+            userNearest.put(key,ps)
+          }else{
+            if(u1SCount>numNearestUsers){
+              //选择小的替换
+              val min_p: (String, Double) =userNearest.filter(r=>(r._1.indexOf(","+u1+",") > -1)).minBy(_._2)
+              if (ps > min_p._2) {
+                userNearest.remove(min_p._1)
+                userNearest.put(key, ps)
+              }
+            }
+
+            if(u2SCount>numNearestUsers){
+              //选择小的替换
+              val min_p: (String, Double) =userNearest.filter(r=>(r._1.indexOf(","+u2+",") > -1)).minBy(_._2)
+              if (ps > min_p._2) {
+                userNearest.remove(min_p._1)
+                userNearest.put(key, ps)
+              }
             }
 
           }
         }
       }
-
-      //logger.info(s"user:$uid nearest users count:${maxPearson.count(_ => true)}")
-      userNearestPearson.put(uid, maxPearson.toList.sortBy(_._2).reverse)
     }
-    userNearestPearson
+    userNearest
   }
 
   //尝试cos相似度
@@ -242,7 +257,9 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
   override def predict(model: ClusterModel, query: Query): PredictedResult = {
 
     //1. 查看用户是否有相似度用户
-    val userNearestRDD: RDD[(String, List[(String, Double)])] = model.nearestUserRDD.filter(_._1==query.user)
+    val userNearestRDD= model.nearestUserRDD.filter(r=>{
+      r._1.indexOf(s",${query.user},") > -1
+    })
     if(userNearestRDD.count()==0){
       //该用户没有最相似的用户列表
       logger.warn(s"该用户:${query.user}没有相似用户列表，无法生成推荐！")
@@ -251,9 +268,15 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
 
     //2. 获取推荐列表
     //用户相似度的Map
-    val userNearestMap=userNearestRDD.flatMap(_._2).collectAsMap()
+    val userNearestMap=userNearestRDD.map(r=>{
+      val uid= r._1.replace(s",${query.user},","").replace(",","")
+      (uid,r._2)
+    }).sortBy(_._2,false).collectAsMap()
+    logger.info(s"${query.user}的相似用户列表的长度为：${userNearestMap.size}")
+
     //用户的已经观看列表
     val currentUserSawSet=getUserSaw(query)
+    logger.info(s"已经观看的列表长度为:${currentUserSawSet.size}")
     val result=model.userLikedRDD.filter(r=> userNearestMap.contains(r._1)).
       flatMap(_._2).
       filter(r=> !currentUserSawSet.contains(r.item)).
@@ -263,7 +286,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         //userNearestMap(r.user)
         (r.item,r.rating * userNearestMap(r.user))
     }).reduceByKey(_+_)
-
+    logger.info(s"生成的推荐列表的长度:${result.count()}")
     val sum:Double = result.map(r => r._2).sum
     if (sum == 0) return PredictedResult(Array.empty)
 

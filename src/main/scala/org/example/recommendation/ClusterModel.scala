@@ -12,7 +12,7 @@ import org.apache.spark.rdd.RDD
   */
 class ClusterModel(
                     val userLikedRDD: RDD[(String, Seq[Rating])],
-                    val nearestUserRDD: RDD[(String, List[(String, Double)])]
+                    val nearestUserRDD: RDD[(String, Double)]
                   ) extends PersistentModel[ClusterAlgorithmParams] with Serializable{
   override def save(id: String, params: ClusterAlgorithmParams, sc: SparkContext): Boolean = {
     userLikedRDD.saveAsObjectFile(s"/tmp/C/$id/userLikedRDD")
@@ -29,7 +29,7 @@ object ClusterModel extends PersistentModelLoader[ClusterAlgorithmParams, Cluste
   override def apply(id: String, params: ClusterAlgorithmParams, sc: Option[SparkContext]): ClusterModel = {
     new ClusterModel(
       sc.get.objectFile[(String, Seq[Rating])](s"/tmp/C/$id/userLikedRDD"),
-      sc.get.objectFile[(String, List[(String, Double)])](s"/tmp/C/$id/nearestUserRDD")
+      sc.get.objectFile[(String, Double)](s"/tmp/C/$id/nearestUserRDD")
     )
   }
 }
