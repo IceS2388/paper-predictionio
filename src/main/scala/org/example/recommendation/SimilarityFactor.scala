@@ -72,7 +72,7 @@ class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val
 
   /**
     * Pearson相似度计算公式:
-    * r=sum((x-x_mean)*(y-y_mean))/(Math.pow(sum(x-x_mean),0.5)*Math.pow(sum(y-y_mean),0.5))
+    * r=sum((x-x_mean)*(y-y_mean))/(Math.sqrt(sum(Math.pow(x-x_mean,2)))*Math.sqrt(sum(Math.pow(y-y_mean,2))))
     * 要求，两者的共同因子必须达到阀值。默认为10
     *
     * 增加评分差距因子。2019年7月26日
@@ -119,27 +119,25 @@ class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val
 
     //偏差因素
     var w=0.0
-
-
     comItems.foreach(i => {
       //                 u1_r     u2_r
       //val t: (String, (Double, Double))
-      w+=Math.pow((i._2._1-i._2._2),2)
+      w+=Math.pow(i._2._1-i._2._2,2)
 
       //计算Pearson系数
       val x_vt = i._2._1 - x_mean
       val y_vt = i._2._2 - y_mean
       xy += x_vt * y_vt
 
-      x_var += x_vt * x_vt
-      y_var += y_vt * y_vt
+      x_var += Math.pow(x_vt -x_mean,2)
+      y_var += Math.pow(y_vt -y_mean,2)
     })
 
     //计算偏差指数
-    w = Math.pow(Math.E,(Math.pow(w,0.5))*(-1)/count)
+    w = Math.pow(Math.E,Math.sqrt(w)*(-1)/count)
 
     //Pearson系数
-    val pearson=xy / (Math.pow(x_var, 0.5) * Math.pow(y_var, 0.5))
+    val pearson=xy / (Math.sqrt(x_var) * Math.sqrt(y_var))
 
     //改良过后的相似度计算方法
     pearson*w

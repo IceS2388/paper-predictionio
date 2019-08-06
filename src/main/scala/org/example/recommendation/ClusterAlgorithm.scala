@@ -28,8 +28,8 @@ case class ClusterAlgorithmParams(
                                    appName: String,
                                    k: Int = 10,
                                    maxIterations: Int = 20,
-                                   numNearestUsers: Int = 60,
-                                   numUserLikeMovies: Int = 100) extends Params
+                                   numNearestUsers: Int = 20,
+                                   numUserLikeMovies: Int = 40) extends Params
 
 class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[PreparedData, ClusterModel, Query, PredictedResult] {
   @transient lazy val logger: Logger = Logger[this.type]
@@ -105,10 +105,10 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     //5.生成用户喜欢的电影
     val userLikedRDD: RDD[(String, Seq[Rating])] = userLikedItems(ap.numUserLikeMovies, pd.ratings)
     //调试信息
-    logger.info("userLikedRDD.count() " + userLikedRDD.count())
+    logger.info("userLikedRDD.count(): " + userLikedRDD.count())
 
     //6.根据用户评分向量生成用户最邻近用户的列表
-    val nearestUser: mutable.Map[String, Double] = userNearestTopN(ap.numNearestUsers, afterClusterRDD,sc)
+    val nearestUser: mutable.Map[String, Double] = userNearestTopN(ap.k,ap.numNearestUsers, afterClusterRDD, sc)
     //调试信息
     logger.info("nearestUser.count():" + nearestUser.size)
     nearestUser.take(10).foreach(println)
@@ -116,68 +116,64 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     new ClusterModel(userLikedRDD, sc.parallelize(nearestUser.toSeq))
   }
 
-  def userNearestTopN(numNearestUsers: Int, clustedRDD: RDD[(Int, (String, linalg.Vector))], sc: SparkContext): mutable.Map[String, Double] = {
+  def userNearestTopN(k: Int, numNearestUsers: Int, clustedRDD: RDD[(Int, (String, linalg.Vector))], sc: SparkContext): mutable.Map[String, Double] = {
     //clustedRDD: RDD[(Int, (Int, linalg.Vector))]
     //                簇Index  Uid    评分向量
-    val users: Array[(Int, String)] = clustedRDD.map(r => {
-      (r._1, r._2._1)
-    }).sortBy(_._2.toInt).collect()
+
 
     val userNearestAccumulator = new NearestUserAccumulator
     sc.register(userNearestAccumulator, "userNearestAccumulator")
-    for {
-      (cIdx, u1) <- users
-    } {
 
-      val cUsers: RDD[(String, linalg.Vector)] = clustedRDD.filter(_._1 == cIdx).map(_._2).cache()
-      logger.info(s"族$cIdx 中用户数量为：${cUsers.count()}")
-      //当前用户的评分向量
-      val v1: linalg.Vector = cUsers.filter(_._1 == u1).map(_._2).first()
-      logger.info("v1:" + v1)
-      val oldS = userNearestAccumulator.value.size
+    //1.考虑从族中进行计算相似度
+    (0 until k).foreach(idx => {
+      val curUsersVectors = clustedRDD.filter(_._1 == idx).map(_._2).map(r =>
+        (r._1.toInt, r._2)).cache()
+      logger.info(s"族$idx 中用户数量为：${curUsersVectors.count()}")
 
-      for {(u2, v2) <- cUsers
-           if u1 != u2 && !(userNearestAccumulator.value.contains(s",$u1,$u2,") || userNearestAccumulator.value.contains(s",$u2,$u1,"))
+      for {
+        (u1, v1) <- curUsersVectors
+        (u2, v2) <- curUsersVectors
+        if u1 < u2
       } {
-        //调试信息
-        //logger.info("v1:"+v1)
-        //logger.info("v2:"+v2)
-        val ps = getCosineSimilarity(v1, v2)
-        logger.info("相似度:" + ps)
-        if (ps > 0) {
+        val score = getImprovePearson(v1, v2)
+        logger.info(s"score:$score")
+        if (score > 0) {
 
           //限制u1相似度列表的大小
           val u1SCount = userNearestAccumulator.value.count(r => r._1.indexOf(s",$u1,") > -1)
           //限制u2相似度列表的大小
           val u2SCount = userNearestAccumulator.value.count(r => r._1.indexOf(s",$u2,") > -1)
           logger.info(s"u1SCount:$u1SCount,u2SCount:$u2SCount")
-          val key = s",$u1,$u2,"
+
+
           if (u1SCount <= numNearestUsers && u2SCount <= numNearestUsers) {
-            userNearestAccumulator.add((key, ps))
+            userNearestAccumulator.add(u1, u2, score)
           } else {
+
             if (u1SCount > numNearestUsers) {
               //选择小的替换
               val min_p: (String, Double) = userNearestAccumulator.value.filter(r => r._1.indexOf("," + u1 + ",") > -1).minBy(_._2)
-              if (ps > min_p._2) {
+              if (score > min_p._2) {
                 userNearestAccumulator.value.remove(min_p._1)
-                userNearestAccumulator.add((key, ps))
+                userNearestAccumulator.add(u1, u2, score)
               }
             }
 
             if (u2SCount > numNearestUsers) {
               //选择小的替换
               val min_p: (String, Double) = userNearestAccumulator.value.filter(r => r._1.indexOf("," + u2 + ",") > -1).minBy(_._2)
-              if (ps > min_p._2) {
+              if (score > min_p._2) {
                 userNearestAccumulator.value.remove(min_p._1)
-                userNearestAccumulator.add((key, ps))
+                userNearestAccumulator.add(u1, u2, score)
               }
             }
-
           }
-        }
+        }//end  if (score > 0) {
       }
-      logger.info(s"本次增加了${userNearestAccumulator.value.size - oldS}条记录.")
-    }
+      logger.info(s"累加器数据条数：${userNearestAccumulator.value.size}条记录.")
+    })
+
+
     userNearestAccumulator.value
   }
 
@@ -201,11 +197,17 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     * r=sum((x-x_mean)*(y-y_mean))/(Math.pow(sum(x-x_mean),0.5)*Math.pow(sum(y-y_mean),0.5))
     * */
   def getImprovePearson(v1: linalg.Vector, v2: linalg.Vector): Double = {
+    //偏差因子
+    var w=0.0
+
+
     var sum1 = 0D
     var sum2 = 0D
     for (idx <- 0 until v1.size) {
       sum1 += v1.apply(idx)
       sum2 += v2.apply(idx)
+
+      w+=Math.pow(v1.apply(idx)-v2.apply(idx),2)
     }
     val mean1 = sum1 / v1.size
     val mean2 = sum2 / v2.size
@@ -214,15 +216,19 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     sum2 = 0
     for (idx <- 0 until v1.size) {
       sum += (v1.apply(idx) - mean1) * (v2.apply(idx) - mean2)
-      sum1 += (v1.apply(idx) - mean1)
-      sum2 += (v2.apply(idx) - mean2)
+      sum1 += Math.pow(v1.apply(idx) - mean1,2)
+      sum2 += Math.pow(v2.apply(idx) - mean2,2)
     }
     val sum1sum2 = Math.sqrt(sum1) * Math.sqrt(sum2)
+
+    //计算偏差指数
+    w = Math.pow(Math.E,Math.sqrt(w)*(-1)/v1.size)
 
     if (sum1sum2 == 0)
       0
     else
-      sum / sum1sum2
+      sum / sum1sum2 *w
+
   }
 
   def userLikedItems(numUserLikeMovies: Int, data: RDD[Rating]): RDD[(String, Seq[Rating])] = {
@@ -350,14 +356,20 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
   }
 }
 
-class NearestUserAccumulator extends AccumulatorV2[(String, Double), mutable.Map[String, Double]] with Serializable {
+class NearestUserAccumulator extends AccumulatorV2[(Int, Int, Double), mutable.Map[String, Double]] with Serializable {
   private val mapAccumulator = mutable.Map[String, Double]()
+
+  def containsKey(k1: Int, k2: Int): Boolean = {
+    val key1 = s",$k1,$k2,"
+    val key2 = s",$k2,$k1,"
+    mapAccumulator.contains(key1) || mapAccumulator.contains(key2)
+  }
 
   override def isZero: Boolean = {
     mapAccumulator.isEmpty
   }
 
-  override def copy(): AccumulatorV2[(String, Double), mutable.Map[String, Double]] = {
+  override def copy(): AccumulatorV2[(Int, Int, Double), mutable.Map[String, Double]] = {
     val newMapAccumulator = new NearestUserAccumulator()
     mapAccumulator.foreach(x => newMapAccumulator.add(x))
     newMapAccumulator
@@ -367,7 +379,26 @@ class NearestUserAccumulator extends AccumulatorV2[(String, Double), mutable.Map
     mapAccumulator.clear()
   }
 
-  override def add(v: (String, Double)): Unit = {
+  override def add(v: (Int, Int, Double)): Unit = {
+    val u1 = v._1
+    val u2 = v._2
+    val score = v._3
+    if (!this.containsKey(u1, u2)) {
+      val key = s",$u1,$u2,"
+      mapAccumulator += key -> score
+    } else {
+      val key1 = s",$u1,$u2,"
+      val key2 = s",$u2,$u1,"
+      if (mapAccumulator.contains(key1)) {
+        mapAccumulator.put(key1, score)
+      } else if (mapAccumulator.contains(key2)) {
+        mapAccumulator.put(key2, score)
+      }
+    }
+
+  }
+
+  def add(v: (String, Double)): Unit = {
     val key = v._1
     val value = v._2
     if (!mapAccumulator.contains(key))
@@ -376,7 +407,7 @@ class NearestUserAccumulator extends AccumulatorV2[(String, Double), mutable.Map
       mapAccumulator.put(key, value)
   }
 
-  override def merge(other: AccumulatorV2[(String, Double), mutable.Map[String, Double]]): Unit = {
+  override def merge(other: AccumulatorV2[(Int, Int, Double), mutable.Map[String, Double]]): Unit = {
     other.value.foreach(r => {
       this.add(r)
     })
