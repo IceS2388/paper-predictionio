@@ -28,8 +28,8 @@ case class ClusterAlgorithmParams(
                                    appName: String,
                                    k: Int = 10,
                                    maxIterations: Int = 20,
-                                   numNearestUsers: Int = 20,
-                                   numUserLikeMovies: Int = 40) extends Params
+                                   numNearestUsers: Int = 60,
+                                   numUserLikeMovies: Int = 100) extends Params
 
 class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[PreparedData, ClusterModel, Query, PredictedResult] {
   @transient lazy val logger: Logger = Logger[this.type]
