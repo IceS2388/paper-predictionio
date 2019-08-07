@@ -24,12 +24,12 @@ import scala.concurrent.duration.Duration
   * 纯粹的聚类算法，对整个族的统一聚类。不包含每个用户的相似度
   */
 case class PureClusterAlgorithmParams(
-                                   appName: String,
-                                   k: Int = 10,
-                                   method:String="cosine",
-                                   maxIterations: Int = 20,
-                                   numNearestUsers: Int = 60,
-                                   numUserLikeMovies: Int = 100) extends Params
+                                       appName: String,
+                                       k: Int = 5,
+                                       maxIterations: Int = 20,
+                                       numNearestUsers: Int = 60,
+                                       numUserLikeMovies: Int = 100) extends Params
+
 class PureClusterAlgorithm(val ap: PureClusterAlgorithmParams) extends PAlgorithm[PreparedData, PureClusterModel, Query, PredictedResult] {
   @transient lazy val logger: Logger = Logger[this.type]
 
@@ -112,31 +112,31 @@ class PureClusterAlgorithm(val ap: PureClusterAlgorithmParams) extends PAlgorith
       *  1.生成该族所有所有用户距离中心点距离的倒数系数，作为权重系数。
       *  2.把族中每个用户评分的Item和Rating，然后，同时对rating*权重系数，最后，累加获得族中用户推荐列表。
       *  3.存储该推荐列表，然后用于预测。
-      * */
+      **/
 
-    val userWeight= afterClusterRDD.map(r=>{
+    val userWeight = afterClusterRDD.map(r => {
       //r._1 //clusterIDX
       //r._2._1 //用户的ID
       //r._2._2 //用户的评分向量
-      val centerVector=model.clusterCenters.apply(r._1)
-      val distance=getDistance(centerVector,r._2._2)
-      (r._2._1,1/distance)
+      val centerVector = model.clusterCenters.apply(r._1)
+      val distance = getDistance(centerVector, r._2._2)
+      (r._2._1, 1 / distance)
     }).collectAsMap()
 
     //累加器
     val pureClusterAccumulator = new PureClusterAccumulator
     sc.register(pureClusterAccumulator, "pureClusterAccumulator")
 
-    for(idx <- 0 until ap.k){
-      val userSet=afterClusterRDD.filter(_._1==idx).map(_._2._1).collect().toSet
+    for (idx <- 0 until ap.k) {
+      val userSet = afterClusterRDD.filter(_._1 == idx).map(_._2._1).collect().toSet
       //这里需要一个
       // 数据格式： (idx,itemId,score)
-      val clustersItems: RDD[(Int, String, Double)] =pd.ratings.filter(r=>userSet.contains(r.user)).map(r=>{
-        (r.item,r.rating * userWeight(r.user))
-      }).reduceByKey(_+_).sortBy(_._2).map(r=>{
-        (idx,r._1,r._2)
+      val clustersItems: RDD[(Int, String, Double)] = pd.ratings.filter(r => userSet.contains(r.user)).map(r => {
+        (r.item, r.rating * userWeight(r.user))
+      }).reduceByKey(_ + _).sortBy(_._2).map(r => {
+        (idx, r._1, r._2)
       })
-      clustersItems.foreach(r=>{
+      clustersItems.foreach(r => {
         pureClusterAccumulator.add(r)
       })
       logger.info(s"累加器的记录条数:${pureClusterAccumulator.value.size}")
@@ -144,24 +144,23 @@ class PureClusterAlgorithm(val ap: PureClusterAlgorithmParams) extends PAlgorith
     }
 
     //生成用户所属族
-    val userBelongClusterIndex: RDD[(String, Int)] = afterClusterRDD.map(r=>{
-      (r._2._1,r._1)
+    val userBelongClusterIndex: RDD[(String, Int)] = afterClusterRDD.map(r => {
+      (r._2._1, r._1)
     })
 
     new PureClusterModel(userBelongClusterIndex, sc.parallelize(pureClusterAccumulator.value.toSeq))
   }
 
-  def getDistance(v1:linalg.Vector,v2:linalg.Vector):Double={
-    var sum=0D
+  def getDistance(v1: linalg.Vector, v2: linalg.Vector): Double = {
+    var sum = 0D
     for (idx <- 0 until v1.size) {
       sum += Math.pow(v1.apply(idx) - v2.apply(idx), 2)
     }
-    if(sum==0)
+    if (sum == 0)
       0
     else
       Math.sqrt(sum)
   }
-
 
 
   //实时从数据库获取用户的观看列表
@@ -209,21 +208,21 @@ class PureClusterAlgorithm(val ap: PureClusterAlgorithmParams) extends PAlgorith
 
 
     //1.查看当前用户所属的族
-    val userId2ClusterIndex= model.userBelongClusterIndex.collectAsMap()
+    val userId2ClusterIndex = model.userBelongClusterIndex.collectAsMap()
     //1. 查看用户是否有相似度用户
-    if(!userId2ClusterIndex.contains(query.user)){
+    if (!userId2ClusterIndex.contains(query.user)) {
       //该用户没有所属的族ID
       logger.warn(s"该用户:${query.user}没有该用户没有所属的簇，无法生成推荐！")
       return PredictedResult(Array.empty)
     }
     //2. 获取推荐列表
-    val cIdx=userId2ClusterIndex(query.user)
-    val clusterItems =model.clusterItems.filter(r=>{
+    val cIdx = userId2ClusterIndex(query.user)
+    val clusterItems = model.clusterItems.filter(r => {
       //r._1 //val key = s",c$clusterIdx,$itemID,"
-      r._1.indexOf(s",c$cIdx,")> -1
-    }).map(r=>{
-      val itemid=r._1.replace(s",c$cIdx,","").replace(",","")
-      (itemid,r._2)
+      r._1.indexOf(s",c$cIdx,") > -1
+    }).map(r => {
+      val itemid = r._1.replace(s",c$cIdx,", "").replace(",", "")
+      (itemid, r._2)
     })
     logger.info(s"${query.user}所在簇的推荐列表的长度为：${clusterItems.count()}")
 
@@ -266,9 +265,10 @@ class PureClusterAlgorithm(val ap: PureClusterAlgorithmParams) extends PAlgorith
 
 
 class PureClusterAccumulator
-  extends AccumulatorV2[(Int, String, Double),mutable.Map[String, Double]]
+  extends AccumulatorV2[(Int, String, Double), mutable.Map[String, Double]]
     with Serializable {
   private val mapAccumulator = mutable.Map[String, Double]()
+
   override def isZero: Boolean = {
     mapAccumulator.isEmpty
   }
@@ -279,7 +279,7 @@ class PureClusterAccumulator
     newMapAccumulator
   }
 
-  override def reset(): Unit ={
+  override def reset(): Unit = {
     mapAccumulator.clear()
   }
 
@@ -293,8 +293,8 @@ class PureClusterAccumulator
       mapAccumulator += key -> score
     } else {
       //选大的
-      val oldScore= mapAccumulator(key)
-      if(oldScore<score){
+      val oldScore = mapAccumulator(key)
+      if (oldScore < score) {
         mapAccumulator.put(key, score)
       }
     }

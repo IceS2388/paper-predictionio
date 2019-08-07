@@ -9,6 +9,17 @@
   },
   "algorithms": [
     {
+      "name": "purecluster",
+      "params": {
+        "appName": "MyApp1",
+        "k": 10,
+        "maxIterations": 20,
+        "numNearestUsers": 20,
+        "numUserLikeMovies": 40
+      }
+    }
+    ,
+    {
       "name": "cluster",
       "params": {
         "appName": "MyApp1",
