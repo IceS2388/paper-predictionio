@@ -27,6 +27,7 @@ import scala.concurrent.duration.Duration
 case class ClusterAlgorithmParams(
                                    appName: String,
                                    k: Int = 10,
+                                   method:String="cosine",
                                    maxIterations: Int = 20,
                                    numNearestUsers: Int = 60,
                                    numUserLikeMovies: Int = 100) extends Params
@@ -108,7 +109,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     logger.info("userLikedRDD.count(): " + userLikedRDD.count())
 
     //6.根据用户评分向量生成用户最邻近用户的列表
-    val nearestUser: mutable.Map[String, Double] = userNearestTopN(ap.k,ap.numNearestUsers, afterClusterRDD, sc)
+    val nearestUser: mutable.Map[String, Double] = userNearestTopN(ap.method,ap.k,ap.numNearestUsers, afterClusterRDD, sc)
     //调试信息
     logger.info("nearestUser.count():" + nearestUser.size)
     nearestUser.take(10).foreach(println)
@@ -116,7 +117,7 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     new ClusterModel(userLikedRDD, sc.parallelize(nearestUser.toSeq))
   }
 
-  def userNearestTopN(k: Int, numNearestUsers: Int, clustedRDD: RDD[(Int, (String, linalg.Vector))], sc: SparkContext): mutable.Map[String, Double] = {
+  def userNearestTopN(method:String,k: Int, numNearestUsers: Int, clustedRDD: RDD[(Int, (String, linalg.Vector))], sc: SparkContext): mutable.Map[String, Double] = {
     //clustedRDD: RDD[(Int, (Int, linalg.Vector))]
     //                簇Index  Uid    评分向量
 
@@ -138,15 +139,19 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
         if u1 < u2
       } {
 
-        val score = getImprovePearson(v1, v2)
-        logger.info(s"score:$score")
+        val score =if(method=="cosine"){
+          getCosineSimilarity(v1,v2)
+        } else {
+          getImprovePearson(v1, v2)
+        }
+        //logger.info(s"score:$score")
         if (score > 0) {
 
           //限制u1相似度列表的大小
           val u1SCount = userNearestAccumulator.value.count(r => r._1.indexOf(s",$u1,") > -1)
           //限制u2相似度列表的大小
           val u2SCount = userNearestAccumulator.value.count(r => r._1.indexOf(s",$u2,") > -1)
-          logger.info(s"u1SCount:$u1SCount,u2SCount:$u2SCount")
+          //logger.info(s"u1SCount:$u1SCount,u2SCount:$u2SCount")
 
 
           if (u1SCount < numNearestUsers && u2SCount < numNearestUsers) {

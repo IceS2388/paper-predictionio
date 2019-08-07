@@ -120,7 +120,7 @@ class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val
     //偏差因素
     var w=0.0
     comItems.foreach(i => {
-      //                 u1_r     u2_r
+      //         item  u1_rating u2_rating
       //val t: (String, (Double, Double))
       w+=Math.pow(i._2._1-i._2._2,2)
 

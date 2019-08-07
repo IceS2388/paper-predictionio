@@ -13,6 +13,7 @@
       "params": {
         "appName": "MyApp1",
         "k": 10,
+        "method": "cosine",
         "maxIterations": 20,
         "numNearestUsers": 20,
         "numUserLikeMovies": 40
