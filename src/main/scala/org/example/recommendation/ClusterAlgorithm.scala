@@ -70,8 +70,8 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
       """.stripMargin)
     userVectorsDF.createOrReplaceTempView("uv")
     //调试信息
-    userVectorsDF.printSchema()
-    userVectorsDF.show(10)
+    //userVectorsDF.printSchema()
+    //userVectorsDF.show(10)
 
     val userVectorsRDD = userVectorsDF.rdd.map(r => {
       (r.get(0).toString,
@@ -89,8 +89,9 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     })
     val featuresRDD = userVectorsRDD.map(_._2)
     //调试信息
-    logger.info(s"featuresRDD.count:${featuresRDD.count()}")
+    //logger.info(s"featuresRDD.count:${featuresRDD.count()}")
 
+    logger.info("正在对用户评分向量进行聚类，需要些时间...")
     //3.准备聚类
     val bkm = new BisectingKMeans().setK(ap.k).setMaxIterations(ap.maxIterations)
     val model = bkm.run(featuresRDD)
@@ -102,6 +103,14 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     val afterClusterRDD: RDD[(Int, (String, linalg.Vector))] = userVectorsRDD.map(r => {
       (model.predict(r._2), r)
     })
+
+    //5.从这里开始新思路。
+    /**
+      * 思路：
+      *  1.生成该族所有所有用户距离中心点距离的倒数系数，作为权重系数。
+      *  2.把族中每个用户评分的Item和Rating，然后，同时对rating*权重系数，最后，累加获得族中用户推荐列表。
+      *  3.存储该推荐列表，然后用于预测。
+      * */
 
     //5.生成用户喜欢的电影
     val userLikedRDD: RDD[(String, Seq[Rating])] = userLikedItems(ap.numUserLikeMovies, pd.ratings)
