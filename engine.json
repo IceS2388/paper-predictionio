@@ -13,9 +13,7 @@
       "params": {
         "appName": "MyApp1",
         "k": 5,
-        "maxIterations": 20,
-        "numNearestUsers": 20,
-        "numUserLikeMovies": 40
+        "maxIterations": 20
       }
     }
     ,
