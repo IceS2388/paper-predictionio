@@ -88,7 +88,7 @@ class DataSource(val dsp: DataSourceParams)  extends PDataSource[TrainingData,Em
     //缓存便于多次使用
     ratings.cache
 
-    //TODO 对用户进行分层取样 对每个用户安装行为的80%作为训练集，20%作为测试集。
+
     //分割数据,分成k份。[0,KFold)
     (0 until kFold).map { idx => {//idx每份数据的索引
 

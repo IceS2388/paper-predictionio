@@ -48,7 +48,6 @@ class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val
     val userLikesBeyondMean: Map[String, List[Rating]] = userRatings.map(r => {
 
       //当前用户的平均评分
-      val sum = r._2.map(r => r.rating).sum
       val count = r._2.size
 
       //用户浏览的小于numNearst，全部返回
@@ -56,8 +55,7 @@ class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val
         //排序后，直接返回
         r._2.toList.sortBy(_.rating).reverse
       } else {
-        val mean = sum / count
-        r._2.filter(t => t.rating > mean).toList.sortBy(_.rating).reverse.take(numUserLikeMovies)
+        r._2.toList.sortBy(_.rating).reverse.take(numUserLikeMovies)
       }
 
       //logger.info(s"user:${r._1} likes Movies Count ${userLikes.count(_=>true)}")

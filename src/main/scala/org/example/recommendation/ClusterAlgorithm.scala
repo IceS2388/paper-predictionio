@@ -252,15 +252,14 @@ class ClusterAlgorithm(val ap: ClusterAlgorithmParams) extends PAlgorithm[Prepar
     val groupRDD: RDD[(String, Iterable[Rating])] = data.groupBy(_.user)
     //1.计算用户的平均分
     val userMean = groupRDD.map(r => {
-      val sum = r._2.map(r2 => r2.rating).sum
+
       val count = r._2.size
       //用户浏览的小于numNearst，全部返回
       val userLikes: Seq[Rating] = if (count < numUserLikeMovies) {
         //排序后，直接返回
         r._2.toList.sortBy(_.rating).reverse
       } else {
-        val mean = sum / count
-        r._2.filter(t => t.rating > mean).toList.sortBy(_.rating).reverse.take(numUserLikeMovies)
+        r._2.toList.sortBy(_.rating).reverse.take(numUserLikeMovies)
       }
 
       (r._1, userLikes)
