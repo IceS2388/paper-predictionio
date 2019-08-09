@@ -15,6 +15,7 @@ import org.apache.spark.rdd.RDD
   **/
 case class VerifiedResult(precision: Double, recall: Double, f1: Double) extends Ordered[VerifiedResult] {
 
+
   override def compare(y: VerifiedResult): Int = {
 
     if (this.precision != y.precision) {
@@ -56,6 +57,7 @@ case class Recommendation()
       * F1 = 2TP / (2TP + FP + FN)
       **/
     logger.info(s"evalDataSet的大小：${evalDataSet.count(_ => true)}")
+
     val finalV = evalDataSet.map(r => {
       //r._2 RDD[(Query, PredictedResult, ActualResult)])] 这是每条参数的对应每次的预测结果
       logger.info("----------------单次结果--------------------")
@@ -75,7 +77,7 @@ case class Recommendation()
         val predictedItems = p._2.itemScores.map(ir => ir.item)
         if (predictedItems.size == 0) {
           //返回每一个用户ID的验证结果
-          val re=VerifiedResult(0, 0, 0)
+          val re = VerifiedResult(0, 0, 0)
           logger.info(re)
           re
         } else {
@@ -91,13 +93,12 @@ case class Recommendation()
           //TODO 注释
           logger.info(s"user:${p._1.user},num:${p._1.num},precision：$precision,recall:$recall,f1:$f1")
           //返回每一个用户ID的验证结果
-          val re=VerifiedResult(precision, recall, f1)
+          val re = VerifiedResult(precision, recall, f1)
 
           logger.info(re)
           re
         }
       })
-
 
 
       val count = each.count()
@@ -109,10 +110,10 @@ case class Recommendation()
           VerifiedResult(v1.precision + v2.precision, v1.recall + v2.recall, v1.f1 + v2.f1)
         })
         logger.info("--------------------第一次聚合开始-----------------------")
-        logger.info("第一次reduce："+t)
+        logger.info("第一次reduce：" + t)
         //返回这个参数下：所有验证结果的平均值
-        val re2=VerifiedResult(t.precision / count, t.recall / count, t.f1 / count)
-        logger.info("第一次reduce后,求平均值："+t)
+        val re2 = VerifiedResult(t.precision / count, t.recall / count, t.f1 / count)
+        logger.info("第一次reduce后,求平均值：" + t)
 
         re2
       }
@@ -125,9 +126,9 @@ case class Recommendation()
       val tTop = finalV.reduce((v1, v2) => {
         VerifiedResult(v1.precision + v2.precision, v1.recall + v2.recall, v1.f1 + v2.f1)
       })
-      logger.info("第二次reduce："+tTop)
-      val re2=VerifiedResult(tTop.precision / fCount, tTop.recall / fCount, tTop.f1 / fCount)
-      logger.info("第二次reduce后,求平均值："+re2)
+      logger.info("第二次reduce：" + tTop)
+      val re2 = VerifiedResult(tTop.precision / fCount, tTop.recall / fCount, tTop.f1 / fCount)
+      logger.info("第二次reduce后,求平均值：" + re2)
       re2
     }
   }
@@ -152,7 +153,7 @@ object EngineParamsList extends EngineParamsGenerator {
   //EngineParamsList用于定义评估的参数列表
 
   //首先，定义基本的引擎参数。它的appName指定了读取的数据源，评估参数evalParams用于定义交叉验证。
-  //DataSourceEvalParams:第一个10是分成10份，第二个是推荐的个数
+  //DataSourceEvalParams:第一个5是分成5份，第二个是推荐的个数
   private[this] val baseEP = EngineParams(
     dataSourceParams = DataSourceParams(appName = "MyApp1", evalParams = Some(DataSourceEvalParams(5, 20))))
 
@@ -163,8 +164,17 @@ object EngineParamsList extends EngineParamsGenerator {
     //baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 20)))),
     // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 20)))),
     // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 40)))),
-    baseEP.copy(algorithmParamsList = Seq(("pearson", PearsonAlgorithmParams(10, 20, 40))))
-   // ,
+    //baseEP.copy(algorithmParamsList = Seq(("pearson", PearsonAlgorithmParams(10, 20, 40))))
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 10)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 15)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 20)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 25)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 30)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 3, 20)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 20)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 10, 20)))),
+    baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 15, 20))))
+    // ,
     //baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 60, 100)))),
 
     // baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),

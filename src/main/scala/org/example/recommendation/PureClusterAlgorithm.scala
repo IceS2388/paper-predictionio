@@ -26,9 +26,8 @@ import scala.concurrent.duration.Duration
 case class PureClusterAlgorithmParams(
                                        appName: String,
                                        k: Int = 5,
-                                       maxIterations: Int = 20,
-                                       numNearestUsers: Int = 60,
-                                       numUserLikeMovies: Int = 100) extends Params
+                                       maxIterations: Int = 20
+                                       ) extends Params
 
 class PureClusterAlgorithm(val ap: PureClusterAlgorithmParams) extends PAlgorithm[PreparedData, PureClusterModel, Query, PredictedResult] {
   @transient lazy val logger: Logger = Logger[this.type]
@@ -91,7 +90,7 @@ class PureClusterAlgorithm(val ap: PureClusterAlgorithmParams) extends PAlgorith
 
     logger.info("正在对用户评分向量进行聚类，需要些时间...")
     //3.准备聚类
-    // TODO 2分聚类效果不太好k，均匀或基于密度比较合适
+    // 2分聚类效果不太好k，均匀或基于密度比较合适
     //通过WSSSE来选择最合适的集合
     val bkm = new BisectingKMeans().setK(ap.k).setMaxIterations(ap.maxIterations)
     val model = bkm.run(featuresRDD)
