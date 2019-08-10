@@ -53,6 +53,13 @@ $ sbt clean package && pio-docker eval org.example.recommendation.Recommendation
 ```
 **运行结果：**报错`OOM`需要阅读Spark相关文档后继续。或者删除临时文件夹中prediction相关的文件。
 
+**Cyber**
+```sql
+MATCH (v:VerifyResult)
+WHERE v.type='PREDICTIONIO_ALS'
+DETACH DELETE v
+```
+
 ## 三、系统架构
 PredictionIO主要由DASE4个组件组成。
 ### 3.1 [D] Data Source and Data Preparator 数据源和数据准备器

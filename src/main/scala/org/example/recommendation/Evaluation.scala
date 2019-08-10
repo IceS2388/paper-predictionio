@@ -160,11 +160,6 @@ object EngineParamsList extends EngineParamsGenerator {
 
   //然后，精确指定每个引擎的参数列表，同一个引擎可以有多个不同的测试参数。
   engineParamsList = Seq(
-    //baseEP.copy(algorithmParamsList = Seq(("als", ALSAlgorithmParams(10, 20, 0.01, Some(3L))))),
-    //baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 20)))),
-    // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 20, 20)))),
-    // baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(5, 20, 40)))),
-    //baseEP.copy(algorithmParamsList = Seq(("pearson", PearsonAlgorithmParams(10, 20, 40))))
     baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 10)))),
     baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 15)))),
     baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 20)))),
@@ -174,17 +169,7 @@ object EngineParamsList extends EngineParamsGenerator {
     baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 5, 20)))),
     baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 10, 20)))),
     baseEP.copy(algorithmParamsList = Seq(("purecluster", PureClusterAlgorithmParams("MyApp1", 15, 20))))
-    // ,
-    //baseEP.copy(algorithmParamsList = Seq(("prt", PRTAlgorithmParams(10, 60, 100)))),
 
-    // baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(100)))),
-    //baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(200)))),
-    //baseEP.copy(algorithmParamsList = Seq(("mv", MViewAlgorithmParams(300)))),
-
-    //baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20, 20)))),
-    //baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 20, 20)))),
-    //baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(5, 20, 40)))),
-    //baseEP.copy(algorithmParamsList = Seq(("nb", NBAlgorithmParams(10, 60, 100))))
   )
 }
 

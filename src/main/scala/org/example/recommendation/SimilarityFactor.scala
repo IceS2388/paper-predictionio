@@ -22,8 +22,7 @@ class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val
       u1 <- users
     } {
       val maxPearson: mutable.Map[String, Double] = mutable.HashMap.empty
-      for {u2 <- users
-           if u1 < u2} {
+      for {u2 <- users} {
         val ps = getSimilarity(u1, u2, userRatings)
         if (ps > 0) {
           //有用的相似度
@@ -135,7 +134,7 @@ class SimilarityFactor(val pearsonThreashold: Int, val numNearestUsers: Int, val
     w = Math.pow(Math.E,Math.sqrt(w)*(-1)/count)
 
     //Pearson系数
-    val pearson=xy / (Math.sqrt(x_var) * Math.sqrt(y_var))
+    val pearson=xy / (Math.sqrt(x_var * y_var))
 
     //改良过后的相似度计算方法
     pearson*w

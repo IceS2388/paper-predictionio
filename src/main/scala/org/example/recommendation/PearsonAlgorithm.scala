@@ -28,11 +28,11 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
     val userRatings: Map[String, Iterable[Rating]] = data.ratings.groupBy(r => r.user).collectAsMap().toMap
 
     //2.计算用户与用户之间Pearson系数，并返回用户观看过后喜欢的列表和pearson系数最大的前TopN个用户的列表
-    val (userLikes,nearstPearson) = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
+    val (userLikes,nearestPearson) = new SimilarityFactor(ap.pearsonThreashold, ap.numNearestUsers, ap.numUserLikeMovies).getNearstUsers(userRatings)
 
     new PearsonModel(
       sc.parallelize(userRatings.toSeq),
-      sc.parallelize(nearstPearson.toSeq), //用户Pearson系数最近的N个用户
+      sc.parallelize(nearestPearson.toSeq), //用户Pearson系数最近的N个用户
       sc.parallelize(userLikes.toSeq) //用户喜欢的N部电影
     )
   }
@@ -90,7 +90,7 @@ class PearsonAlgorithm(val ap: PearsonAlgorithmParams) extends PAlgorithm[Prepar
     val weight = 1.0
     val returnResult = result.map(r => {
       ItemScore(r._1, r._2 / sum * weight)
-    }).sortBy(r => r.score, false).take(query.num)
+    }).sortBy(r => r.score, ascending = false).take(query.num)
 
     //排序，返回结果
     PredictedResult(returnResult)
